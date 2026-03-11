@@ -30,6 +30,9 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 50;
 }
 
 .logo {
@@ -41,6 +44,7 @@ body {
 .nav-links {
   display: flex;
   gap: 2rem;
+  align-items: center;
 }
 
 .nav-links a {
@@ -48,6 +52,9 @@ body {
   color: #333;
   font-weight: 500;
   transition: color 0.2s;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
 }
 
 .nav-links a:hover {
@@ -414,13 +421,15 @@ button.primary {
 }
 
 .exam-card.opted-out {
-  opacity: 0.6;
   border-color: #ffb3b3;
 }
 
 .exam-card.opted-out h3 {
-  text-decoration: line-through;
-  color: #999;
+  color: #cc0000;
+}
+
+.exam-card.opted-out a {
+  color: #cc0000;
 }
 
 .exam-card h3 {
@@ -1197,6 +1206,11 @@ button.primary {
   .nav-links {
     gap: 1rem;
     font-size: 0.9rem;
+    width: 100%;
+    overflow-x: auto;
+    white-space: nowrap;
+    padding-bottom: 0.25rem;
+    -webkit-overflow-scrolling: touch;
   }
 
   /* Main Content */
@@ -1343,6 +1357,13 @@ button.primary {
   .nav-links {
     gap: 0.75rem;
     font-size: 0.85rem;
+    width: 100%;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  .nav-links a {
+    padding: 0 0.2rem;
   }
 
   .page {
@@ -1382,6 +1403,23 @@ button.primary {
   .calendar-event {
     font-size: 0.68rem;
     padding: 0.28rem 0.35rem;
+  }
+
+  .doom-title {
+    font-size: 1.7rem;
+    letter-spacing: 0.05em;
+  }
+
+  .doom-countdown {
+    gap: 0.25rem;
+  }
+
+  .doom-value {
+    font-size: 2.2rem;
+  }
+
+  .doom-colon {
+    font-size: 2rem;
   }
 }
 
