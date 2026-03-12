@@ -28,6 +28,7 @@ export function TopicDetailPage() {
   const [showRevisionModal, setShowRevisionModal] = useState(false);
   const [newSubtopicName, setNewSubtopicName] = useState('');
   const [subtopicNoteDrafts, setSubtopicNoteDrafts] = useState<Record<string, string>>({});
+  const [savedNoteId, setSavedNoteId] = useState<string | null>(null);
   const [newPastPaperTitle, setNewPastPaperTitle] = useState('');
   const [newPastPaperYear, setNewPastPaperYear] = useState('');
   const [newPastPaperUrl, setNewPastPaperUrl] = useState('');
@@ -118,8 +119,11 @@ export function TopicDetailPage() {
           subtopic.id === subtopicId ? { ...subtopic, notes } : subtopic
         )
       );
+      setSavedNoteId(subtopicId);
+      setTimeout(() => setSavedNoteId(null), 2000);
     } catch (error) {
       console.error('Error saving subtopic notes:', error);
+      alert('Failed to save notes. Check browser console for details.');
     }
   }
 
@@ -281,13 +285,18 @@ export function TopicDetailPage() {
                       }))
                     }
                   />
-                  <button
-                    type="button"
-                    className="secondary"
-                    onClick={() => handleSaveSubtopicNotes(subtopic.id)}
-                  >
-                    Save notes
-                  </button>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <button
+                      type="button"
+                      className="secondary"
+                      onClick={() => handleSaveSubtopicNotes(subtopic.id)}
+                    >
+                      Save notes
+                    </button>
+                    {savedNoteId === subtopic.id && (
+                      <span style={{ color: '#4caf50', fontWeight: 600, fontSize: '0.85rem' }}>✓ Saved!</span>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
