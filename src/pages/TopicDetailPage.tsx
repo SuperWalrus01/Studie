@@ -6,6 +6,7 @@ import {
   createSubtopic,
   updateSubtopicStatus,
   updateSubtopicNotes,
+  fetchSubtopicNotes,
   deleteSubtopic,
   updateTopicConfidence,
   updateTopicAfterReview,
@@ -60,8 +61,10 @@ export function TopicDetailPage() {
       
       if (subtopicsError) throw subtopicsError;
       setSubtopics(subtopicsData || []);
+
+      const notesBySubtopic = await fetchSubtopicNotes((subtopicsData || []).map((subtopic) => subtopic.id));
       const draftMap = (subtopicsData || []).reduce((acc, subtopic) => {
-        acc[subtopic.id] = subtopic.notes || '';
+        acc[subtopic.id] = notesBySubtopic[subtopic.id] ?? subtopic.notes ?? '';
         return acc;
       }, {} as Record<string, string>);
       setSubtopicNoteDrafts(draftMap);

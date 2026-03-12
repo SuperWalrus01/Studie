@@ -448,7 +448,48 @@ button.primary {
 .exam-date {
   color: #666;
   font-size: 0.9rem;
+  margin: 0.5rem 0 0.6rem 0;
+}
+
+.edit-date-btn {
+  margin-bottom: 1rem;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.82rem;
+  background: #eef2ff;
+  color: #3347c6;
+  border: 1px solid #cdd6ff;
+  border-radius: 6px;
+}
+
+.exam-date-editor {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
   margin: 0.5rem 0 1rem 0;
+}
+
+.exam-date-editor input[type='date'] {
+  min-width: 160px;
+}
+
+.save-date-btn,
+.cancel-date-btn {
+  padding: 0.4rem 0.75rem;
+  font-size: 0.82rem;
+  border-radius: 6px;
+}
+
+.save-date-btn {
+  background: #e9f8ee;
+  color: #137a35;
+  border: 1px solid #bce8c8;
+}
+
+.cancel-date-btn {
+  background: #f7f7f7;
+  color: #555;
+  border: 1px solid #ddd;
 }
 
 .days-remaining {
@@ -1235,6 +1276,17 @@ button.primary {
   /* Exam Grid */
   .exam-grid {
     grid-template-columns: 1fr;
+  }
+
+  .exam-date-editor {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .exam-date-editor input[type='date'],
+  .save-date-btn,
+  .cancel-date-btn {
+    width: 100%;
   }
 
   /* Forms */

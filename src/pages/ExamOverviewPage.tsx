@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { differenceInDays, format } from 'date-fns';
-import { fetchExams, createExam, deleteExam, fetchAllTopics, toggleExamOptOut } from '../lib/database';
+import { fetchExams, createExam, updateExamDate, deleteExam, fetchAllTopics, toggleExamOptOut } from '../lib/database';
 import type { Exam, Topic } from '../types';
 import { ProgressBar } from '../components/ProgressBar';
 
@@ -12,6 +12,8 @@ export function ExamOverviewPage() {
   const [showForm, setShowForm] = useState(false);
   const [newExamName, setNewExamName] = useState('');
   const [newExamDate, setNewExamDate] = useState('');
+  const [editingExamId, setEditingExamId] = useState<string | null>(null);
+  const [editingDate, setEditingDate] = useState('');
 
   useEffect(() => {
     loadData();
@@ -63,6 +65,29 @@ export function ExamOverviewPage() {
       loadData();
     } catch (error) {
       console.error('Error toggling opt-out:', error);
+    }
+  }
+
+  function handleStartEditDate(exam: Exam) {
+    setEditingExamId(exam.id);
+    setEditingDate(exam.date.split('T')[0]);
+  }
+
+  function handleCancelEditDate() {
+    setEditingExamId(null);
+    setEditingDate('');
+  }
+
+  async function handleSaveEditDate(examId: string) {
+    if (!editingDate) return;
+
+    try {
+      await updateExamDate(examId, editingDate);
+      setEditingExamId(null);
+      setEditingDate('');
+      loadData();
+    } catch (error) {
+      console.error('Error updating exam date:', error);
     }
   }
 
@@ -140,12 +165,27 @@ export function ExamOverviewPage() {
                   <button onClick={() => handleDeleteExam(exam.id)} className="delete-btn">×</button>
                 </div>
               </div>
-              <p className="exam-date">
-                {format(new Date(exam.date), 'MMM d, yyyy')} 
-                <span className="days-remaining">
-                  ({daysRemaining > 0 ? `${daysRemaining} days` : daysRemaining === 0 ? 'Today!' : 'Past'})
-                </span>
-              </p>
+              {editingExamId === exam.id ? (
+                <div className="exam-date-editor">
+                  <input
+                    type="date"
+                    value={editingDate}
+                    onChange={(e) => setEditingDate(e.target.value)}
+                  />
+                  <button onClick={() => handleSaveEditDate(exam.id)} className="save-date-btn">Save</button>
+                  <button onClick={handleCancelEditDate} className="cancel-date-btn">Cancel</button>
+                </div>
+              ) : (
+                <>
+                  <p className="exam-date">
+                    {format(new Date(exam.date), 'MMM d, yyyy')} 
+                    <span className="days-remaining">
+                      ({daysRemaining > 0 ? `${daysRemaining} days` : daysRemaining === 0 ? 'Today!' : 'Past'})
+                    </span>
+                  </p>
+                  <button onClick={() => handleStartEditDate(exam)} className="edit-date-btn">Edit date</button>
+                </>
+              )}
               <ProgressBar value={progress} />
             </div>
           );

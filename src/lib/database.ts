@@ -24,6 +24,18 @@ export async function createExam(name: string, date: string): Promise<Exam> {
   return data;
 }
 
+export async function updateExamDate(id: string, date: string): Promise<Exam> {
+  const { data, error } = await supabase
+    .from('exams')
+    .update({ date })
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
 export async function deleteExam(id: string): Promise<void> {
   const { error } = await supabase
     .from('exams')
@@ -172,12 +184,76 @@ export async function updateSubtopicStatus(
 }
 
 export async function updateSubtopicNotes(subtopicId: string, notes: string): Promise<void> {
-  const { error } = await supabase
+  // Primary storage: subtopic_notes table
+  const { data: existing, error: findError } = await supabase
+    .from('subtopic_notes')
+    .select('id')
+    .eq('subtopic_id', subtopicId)
+    .limit(1);
+
+  // Table might not exist in older schemas
+  if (findError && findError.code !== '42P01') throw findError;
+
+  if (!findError) {
+    if ((existing || []).length > 0) {
+      const { error: updateError } = await supabase
+        .from('subtopic_notes')
+        .update({ note: notes })
+        .eq('subtopic_id', subtopicId);
+
+      if (updateError) throw updateError;
+    } else {
+      const { error: insertError } = await supabase
+        .from('subtopic_notes')
+        .insert({
+          subtopic_id: subtopicId,
+          note: notes
+        });
+
+      if (insertError) throw insertError;
+    }
+  }
+
+  // Backward compatibility for schemas that still use subtopics.notes
+  const { error: legacyError } = await supabase
     .from('subtopics')
     .update({ notes })
     .eq('id', subtopicId);
 
-  if (error) throw error;
+  // Ignore missing-column errors on the legacy field
+  if (legacyError && legacyError.code !== '42703') throw legacyError;
+}
+
+export async function fetchSubtopicNotes(subtopicIds: string[]): Promise<Record<string, string>> {
+  if (subtopicIds.length === 0) return {};
+
+  const { data, error } = await supabase
+    .from('subtopic_notes')
+    .select('subtopic_id, note, updated_at, created_at')
+    .in('subtopic_id', subtopicIds);
+
+  // Table might not exist in older schemas
+  if (error) {
+    if (error.code === '42P01') return {};
+    throw error;
+  }
+
+  const latestBySubtopic: Record<string, { note: string; ts: number }> = {};
+
+  for (const row of data || []) {
+    const subtopicId = row.subtopic_id as string;
+    const note = (row.note as string) || '';
+    const ts = Date.parse((row.updated_at as string) || (row.created_at as string) || '');
+    const normalizedTs = Number.isNaN(ts) ? 0 : ts;
+
+    if (!latestBySubtopic[subtopicId] || normalizedTs >= latestBySubtopic[subtopicId].ts) {
+      latestBySubtopic[subtopicId] = { note, ts: normalizedTs };
+    }
+  }
+
+  return Object.fromEntries(
+    Object.entries(latestBySubtopic).map(([subtopicId, payload]) => [subtopicId, payload.note])
+  );
 }
 
 export async function deleteSubtopic(id: string): Promise<void> {
