@@ -1,8 +1,32 @@
+export type ExamType = 'written_test' | 'assignment';
+
 export interface Exam {
   id: string;
   name: string;
   date: string; // ISO date string
+  exam_type?: ExamType;
   opted_out?: boolean; // If true, exam is excluded from study plans
+  created_at?: string;
+}
+
+export type AssignmentPartStatus =
+  | 'not_started'
+  | 'in_progress'
+  | 'blocked'
+  | 'ready_for_review'
+  | 'completed';
+
+export type AssignmentPartPriority = 'low' | 'medium' | 'high';
+
+export interface AssignmentComponent {
+  id: string;
+  exam_id: string;
+  name: string;
+  notes?: string | null;
+  due_date?: string | null;
+  priority?: AssignmentPartPriority | null;
+  estimated_minutes?: number | null;
+  status: AssignmentPartStatus;
   created_at?: string;
 }
 

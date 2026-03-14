@@ -6,6 +6,7 @@ CREATE TABLE exams (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   date DATE NOT NULL,
+  exam_type TEXT NOT NULL DEFAULT 'written_test' CHECK (exam_type IN ('written_test', 'assignment')),
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -53,6 +54,19 @@ CREATE TABLE past_papers (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Create assignment components table (for assignment-type exams)
+CREATE TABLE assignment_components (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  exam_id UUID NOT NULL REFERENCES exams(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  notes TEXT,
+  due_date DATE,
+  priority TEXT CHECK (priority IN ('low', 'medium', 'high')) DEFAULT 'medium',
+  estimated_minutes INTEGER,
+  status TEXT CHECK (status IN ('not_started', 'in_progress', 'blocked', 'ready_for_review', 'completed')) DEFAULT 'not_started',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- Create indexes for better query performance
 CREATE INDEX idx_topics_exam_id ON topics(exam_id);
 CREATE INDEX idx_topics_next_review ON topics(next_review);
@@ -60,6 +74,7 @@ CREATE INDEX idx_subtopics_topic_id ON subtopics(topic_id);
 CREATE INDEX idx_review_entries_topic_id ON review_entries(topic_id);
 CREATE INDEX idx_review_entries_date ON review_entries(date);
 CREATE INDEX idx_past_papers_topic_id ON past_papers(topic_id);
+CREATE INDEX idx_assignment_components_exam_id ON assignment_components(exam_id);
 
 -- Disable RLS for single-user simplicity (enable and add policies if you want multi-user)
 ALTER TABLE exams DISABLE ROW LEVEL SECURITY;
@@ -67,11 +82,12 @@ ALTER TABLE topics DISABLE ROW LEVEL SECURITY;
 ALTER TABLE subtopics DISABLE ROW LEVEL SECURITY;
 ALTER TABLE review_entries DISABLE ROW LEVEL SECURITY;
 ALTER TABLE past_papers DISABLE ROW LEVEL SECURITY;
+ALTER TABLE assignment_components DISABLE ROW LEVEL SECURITY;
 
 -- Insert sample data
-INSERT INTO exams (id, name, date) VALUES
-  ('11111111-1111-1111-1111-111111111111', 'MA251 Algebra II', '2026-04-15'),
-  ('22222222-2222-2222-2222-222222222222', 'CS220 Data Structures', '2026-04-22');
+INSERT INTO exams (id, name, date, exam_type) VALUES
+  ('11111111-1111-1111-1111-111111111111', 'MA251 Algebra II', '2026-04-15', 'written_test'),
+  ('22222222-2222-2222-2222-222222222222', 'CS220 Data Structures', '2026-04-22', 'written_test');
 
 INSERT INTO topics (id, exam_id, name, difficulty, confidence, interval_days, ease) VALUES
   ('33333333-3333-3333-3333-333333333333', '11111111-1111-1111-1111-111111111111', 'Linear Transformations', 4, 3, 0, 2.50),
@@ -107,3 +123,20 @@ INSERT INTO past_papers (topic_id, title, year, url, status) VALUES
   ('33333333-3333-3333-3333-333333333333', 'Algebra II Final', 2022, 'https://example.com/ma251-final-2022.pdf', 'not_started'),
   ('44444444-4444-4444-4444-444444444444', 'Eigenvalues Practice Paper', 2024, NULL, 'not_started'),
   ('66666666-6666-6666-6666-666666666666', 'BST Past Paper', 2021, 'https://example.com/cs220-bst-2021.pdf', 'completed');
+
+-- Optional migration snippet for existing projects (run once if tables already exist):
+-- ALTER TABLE exams ADD COLUMN IF NOT EXISTS exam_type TEXT NOT NULL DEFAULT 'written_test';
+-- ALTER TABLE exams DROP CONSTRAINT IF EXISTS exams_exam_type_check;
+-- ALTER TABLE exams ADD CONSTRAINT exams_exam_type_check CHECK (exam_type IN ('written_test', 'assignment'));
+-- CREATE TABLE IF NOT EXISTS assignment_components (
+--   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+--   exam_id UUID NOT NULL REFERENCES exams(id) ON DELETE CASCADE,
+--   name TEXT NOT NULL,
+--   notes TEXT,
+--   due_date DATE,
+--   priority TEXT CHECK (priority IN ('low', 'medium', 'high')) DEFAULT 'medium',
+--   estimated_minutes INTEGER,
+--   status TEXT CHECK (status IN ('not_started', 'in_progress', 'blocked', 'ready_for_review', 'completed')) DEFAULT 'not_started',
+--   created_at TIMESTAMPTZ DEFAULT NOW()
+-- );
+-- CREATE INDEX IF NOT EXISTS idx_assignment_components_exam_id ON assignment_components(exam_id);

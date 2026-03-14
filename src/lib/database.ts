@@ -1,5 +1,16 @@
 import { supabase } from './supabase';
-import type { Exam, Topic, Subtopic, ReviewEntry, ReviewRating, PastPaper } from '../types';
+import type {
+  Exam,
+  ExamType,
+  Topic,
+  Subtopic,
+  ReviewEntry,
+  ReviewRating,
+  PastPaper,
+  AssignmentComponent,
+  AssignmentPartPriority,
+  AssignmentPartStatus
+} from '../types';
 import { calculateNextReview } from './spacedRepetition.ts';
 
 // Exams
@@ -13,10 +24,14 @@ export async function fetchExams(): Promise<Exam[]> {
   return data || [];
 }
 
-export async function createExam(name: string, date: string): Promise<Exam> {
+export async function createExam(
+  name: string,
+  date: string,
+  examType: ExamType = 'written_test'
+): Promise<Exam> {
   const { data, error } = await supabase
     .from('exams')
-    .insert({ name, date })
+    .insert({ name, date, exam_type: examType })
     .select()
     .single();
   
@@ -309,4 +324,178 @@ export async function deletePastPaper(id: string): Promise<void> {
     .eq('id', id);
 
   if (error) throw error;
+}
+
+// Assignment components
+export async function fetchAssignmentComponentsForExam(examId: string): Promise<AssignmentComponent[]> {
+  const { data, error } = await supabase
+    .from('assignment_components')
+    .select('*')
+    .eq('exam_id', examId)
+    .order('created_at', { ascending: true });
+
+  if (error) throw error;
+  return data || [];
+}
+
+export async function createAssignmentComponent(
+  examId: string,
+  name: string,
+  dueDate?: string,
+  priority: AssignmentPartPriority = 'medium',
+  estimatedMinutes?: number,
+  notes?: string
+): Promise<AssignmentComponent> {
+  const { data, error } = await supabase
+    .from('assignment_components')
+    .insert({
+      exam_id: examId,
+      name,
+      due_date: dueDate || null,
+      priority,
+      estimated_minutes: estimatedMinutes ?? null,
+      notes: notes || null,
+      status: 'not_started'
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function updateAssignmentComponentStatus(
+  componentId: string,
+  status: AssignmentPartStatus
+): Promise<void> {
+  const { error } = await supabase
+    .from('assignment_components')
+    .update({ status })
+    .eq('id', componentId);
+
+  if (error) throw error;
+}
+
+export async function deleteAssignmentComponent(componentId: string): Promise<void> {
+  const { error } = await supabase
+    .from('assignment_components')
+    .delete()
+    .eq('id', componentId);
+
+  if (error) throw error;
+}
+
+export async function fetchAllAssignmentComponents(): Promise<AssignmentComponent[]> {
+  const { data, error } = await supabase
+    .from('assignment_components')
+    .select('*')
+    .order('created_at', { ascending: true });
+
+  if (error) throw error;
+  return data || [];
+}
+
+export async function transferSubtopicsBetweenWrittenExams(
+  sourceExamId: string,
+  targetExamId: string,
+  mode: 'copy' | 'migrate' = 'copy'
+): Promise<{ topicsCreated: number; topicsMerged: number; subtopicsCreated: number }> {
+  if (sourceExamId === targetExamId) {
+    throw new Error('Source and target exams must be different.');
+  }
+
+  const { data: sourceTopics, error: sourceError } = await supabase
+    .from('topics')
+    .select(`
+      *,
+      subtopics(*)
+    `)
+    .eq('exam_id', sourceExamId)
+    .order('created_at', { ascending: true });
+
+  if (sourceError) throw sourceError;
+
+  const { data: targetTopics, error: targetError } = await supabase
+    .from('topics')
+    .select(`
+      *,
+      subtopics(*)
+    `)
+    .eq('exam_id', targetExamId)
+    .order('created_at', { ascending: true });
+
+  if (targetError) throw targetError;
+
+  const normalize = (value: string) => value.trim().toLowerCase();
+  const targetTopicNames = new Set<string>(((targetTopics || []) as Topic[]).map((topic) => normalize(topic.name)));
+
+  function buildUniqueTopicName(baseName: string): string {
+    const trimmed = baseName.trim();
+    let candidate = trimmed;
+    let index = 1;
+
+    while (targetTopicNames.has(normalize(candidate))) {
+      candidate = `${trimmed} (Copy ${index})`;
+      index += 1;
+    }
+
+    return candidate;
+  }
+
+  let topicsCreated = 0;
+  const topicsMerged = 0;
+  let subtopicsCreated = 0;
+
+  for (const sourceTopic of sourceTopics || []) {
+    const uniqueTopicName = buildUniqueTopicName(sourceTopic.name);
+    const { data: createdTopic, error: createTopicError } = await supabase
+      .from('topics')
+      .insert({
+        exam_id: targetExamId,
+        name: uniqueTopicName,
+        difficulty: sourceTopic.difficulty,
+        confidence: sourceTopic.confidence,
+        last_reviewed: sourceTopic.last_reviewed,
+        interval_days: sourceTopic.interval_days,
+        ease: sourceTopic.ease,
+        next_review: sourceTopic.next_review
+      })
+      .select('*')
+      .single();
+
+    if (createTopicError) throw createTopicError;
+    targetTopicNames.add(normalize(uniqueTopicName));
+    topicsCreated += 1;
+
+    const sourceSubtopics: Subtopic[] = sourceTopic.subtopics || [];
+    const rowsToInsert = sourceSubtopics.map((subtopic) => ({
+        topic_id: createdTopic.id,
+        name: subtopic.name,
+        status: 'in_progress'
+      }));
+
+    if (rowsToInsert.length > 0) {
+      const { error: insertSubtopicsError } = await supabase
+        .from('subtopics')
+        .insert(rowsToInsert);
+
+      if (insertSubtopicsError) throw insertSubtopicsError;
+      subtopicsCreated += rowsToInsert.length;
+    }
+  }
+
+  if (mode === 'migrate') {
+    const { error: deleteSourceError } = await supabase
+      .from('topics')
+      .delete()
+      .eq('exam_id', sourceExamId);
+
+    if (deleteSourceError) throw deleteSourceError;
+  }
+
+  return {
+    topicsCreated,
+    topicsMerged,
+    subtopicsCreated
+  };
 }

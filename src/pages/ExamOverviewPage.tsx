@@ -1,17 +1,27 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { differenceInDays, format } from 'date-fns';
-import { fetchExams, createExam, updateExamDate, deleteExam, fetchAllTopics, toggleExamOptOut } from '../lib/database';
-import type { Exam, Topic } from '../types';
+import {
+  fetchExams,
+  createExam,
+  updateExamDate,
+  deleteExam,
+  fetchAllTopics,
+  toggleExamOptOut,
+  fetchAllAssignmentComponents
+} from '../lib/database';
+import type { Exam, Topic, ExamType, AssignmentComponent } from '../types';
 import { ProgressBar } from '../components/ProgressBar';
 
 export function ExamOverviewPage() {
   const [exams, setExams] = useState<Exam[]>([]);
   const [topics, setTopics] = useState<Topic[]>([]);
+  const [assignmentParts, setAssignmentParts] = useState<AssignmentComponent[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [newExamName, setNewExamName] = useState('');
   const [newExamDate, setNewExamDate] = useState('');
+  const [newExamType, setNewExamType] = useState<ExamType>('written_test');
   const [editingExamId, setEditingExamId] = useState<string | null>(null);
   const [editingDate, setEditingDate] = useState('');
 
@@ -21,12 +31,14 @@ export function ExamOverviewPage() {
 
   async function loadData() {
     try {
-      const [examsData, topicsData] = await Promise.all([
+      const [examsData, topicsData, assignmentPartsData] = await Promise.all([
         fetchExams(),
-        fetchAllTopics()
+        fetchAllTopics(),
+        fetchAllAssignmentComponents()
       ]);
       setExams(examsData);
       setTopics(topicsData);
+      setAssignmentParts(assignmentPartsData);
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -39,9 +51,10 @@ export function ExamOverviewPage() {
     if (!newExamName || !newExamDate) return;
     
     try {
-      await createExam(newExamName, newExamDate);
+      await createExam(newExamName, newExamDate, newExamType);
       setNewExamName('');
       setNewExamDate('');
+      setNewExamType('written_test');
       setShowForm(false);
       loadData();
     } catch (error) {
@@ -92,8 +105,13 @@ export function ExamOverviewPage() {
   }
 
   function getExamProgress(examId: string): number {
+    const { done, total } = getWrittenPartsStats(examId);
+    return total > 0 ? (done / total) * 100 : 0;
+  }
+
+  function getWrittenPartsStats(examId: string): { done: number; total: number } {
     const examTopics = topics.filter(t => t.exam_id === examId);
-    if (examTopics.length === 0) return 0;
+    if (examTopics.length === 0) return { done: 0, total: 0 };
     
     let totalSubtopics = 0;
     let understoodSubtopics = 0;
@@ -104,8 +122,19 @@ export function ExamOverviewPage() {
         understoodSubtopics += topic.subtopics.filter(s => s.status === 'understood').length;
       }
     });
-    
-    return totalSubtopics > 0 ? (understoodSubtopics / totalSubtopics) * 100 : 0;
+
+    return { done: understoodSubtopics, total: totalSubtopics };
+  }
+
+  function getAssignmentPartsStats(examId: string): { done: number; total: number } {
+    const parts = assignmentParts.filter((part) => part.exam_id === examId);
+    const done = parts.filter((part) => part.status === 'completed').length;
+    return { done, total: parts.length };
+  }
+
+  function getAssignmentProgress(examId: string): number {
+    const { done, total } = getAssignmentPartsStats(examId);
+    return total > 0 ? (done / total) * 100 : 0;
   }
 
   function getDaysRemaining(examDate: string): number {
@@ -138,6 +167,14 @@ export function ExamOverviewPage() {
             onChange={(e) => setNewExamDate(e.target.value)}
             required
           />
+          <select
+            value={newExamType}
+            onChange={(e) => setNewExamType(e.target.value as ExamType)}
+            aria-label="Exam type"
+          >
+            <option value="written_test">Written test</option>
+            <option value="assignment">Assignment</option>
+          </select>
           <button type="submit">Create</button>
         </form>
       )}
@@ -145,23 +182,36 @@ export function ExamOverviewPage() {
       <div className="exam-grid">
         {exams.map(exam => {
           const daysRemaining = getDaysRemaining(exam.date);
-          const progress = getExamProgress(exam.id);
           const isUrgent = daysRemaining <= 7;
+          const examType = exam.exam_type || 'written_test';
+          const isAssignment = examType === 'assignment';
+          const writtenStats = getWrittenPartsStats(exam.id);
+          const assignmentStats = getAssignmentPartsStats(exam.id);
+          const done = isAssignment ? assignmentStats.done : writtenStats.done;
+          const total = isAssignment ? assignmentStats.total : writtenStats.total;
+          const progress = isAssignment ? getAssignmentProgress(exam.id) : getExamProgress(exam.id);
           
           return (
             <div key={exam.id} className={`exam-card ${isUrgent ? 'urgent' : ''} ${exam.opted_out ? 'opted-out' : ''}`}>
               <div className="exam-card-header">
-                <Link to={`/exam/${exam.id}`}>
-                  <h3>{exam.name}</h3>
-                </Link>
+                <div>
+                  <Link to={`/exam/${exam.id}`}>
+                    <h3>{exam.name}</h3>
+                  </Link>
+                  <span className={`exam-type-chip ${isAssignment ? 'assignment' : 'written'}`}>
+                    {isAssignment ? 'Assignment' : 'Written test'}
+                  </span>
+                </div>
                 <div className="exam-card-actions">
-                  <button 
-                    onClick={() => handleToggleOptOut(exam.id, exam.opted_out || false)} 
-                    className={`opt-out-btn ${exam.opted_out ? 'opted-out' : ''}`}
-                    title={exam.opted_out ? 'Re-enable this exam' : 'Opt out of studying for this exam'}
-                  >
-                    {exam.opted_out ? '✓' : '○'}
-                  </button>
+                  {!isAssignment && (
+                    <button 
+                      onClick={() => handleToggleOptOut(exam.id, exam.opted_out || false)} 
+                      className={`opt-out-btn ${exam.opted_out ? 'opted-out' : ''}`}
+                      title={exam.opted_out ? 'Re-enable this exam' : 'Opt out of studying for this exam'}
+                    >
+                      {exam.opted_out ? '✓' : '○'}
+                    </button>
+                  )}
                   <button onClick={() => handleDeleteExam(exam.id)} className="delete-btn">×</button>
                 </div>
               </div>
@@ -187,6 +237,7 @@ export function ExamOverviewPage() {
                 </>
               )}
               <ProgressBar value={progress} />
+              <p className="parts-done-summary">{done}/{total} parts done</p>
             </div>
           );
         })}
