@@ -41,7 +41,7 @@ function App() {
                 className="enable-notifications-btn"
                 onClick={handleEnableNotifications}
               >
-                Enable 7PM reminders
+                Enable 8AM & 7PM summary
               </button>
             )}
           </div>

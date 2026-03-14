@@ -1,33 +1,80 @@
 import { format } from 'date-fns';
-import { fetchExams, fetchAllAssignmentComponents } from './database';
+import { fetchExams, fetchAllAssignmentComponents, fetchAllTopics } from './database';
+import { generateFullSchedulePreview } from './scheduler';
 
-const REMINDER_HOUR = 19; // 7 PM local time
-const LAST_SENT_KEY = 'assignmentReminder.lastSentDate';
+const REMINDER_HOURS = [8, 19] as const; // 8 AM and 7 PM local time
+const LAST_SENT_KEY_PREFIX = 'dailySummary.lastSentDate';
 
 function getTodayKey(date = new Date()): string {
   return format(date, 'yyyy-MM-dd');
 }
 
-function getNextReminderDelayMs(now = new Date()): number {
-  const next = new Date(now);
-  next.setHours(REMINDER_HOUR, 0, 0, 0);
-
-  if (next <= now) {
-    next.setDate(next.getDate() + 1);
-  }
-
-  return Math.max(1000, next.getTime() - now.getTime());
+function getLastSentKey(hour: number): string {
+  return `${LAST_SENT_KEY_PREFIX}.${hour}`;
 }
 
-async function sendAssignmentReminderNotification(): Promise<void> {
+function getLatestDueReminderHour(now = new Date()): number | null {
+  for (let i = REMINDER_HOURS.length - 1; i >= 0; i -= 1) {
+    const hour = REMINDER_HOURS[i];
+    const slotTime = new Date(now);
+    slotTime.setHours(hour, 0, 0, 0);
+
+    if (now >= slotTime) {
+      return hour;
+    }
+  }
+
+  return null;
+}
+
+function getNextReminderDelayMs(now = new Date()): number {
+  let nextTimestamp = Number.POSITIVE_INFINITY;
+
+  for (const hour of REMINDER_HOURS) {
+    const candidate = new Date(now);
+    candidate.setHours(hour, 0, 0, 0);
+
+    if (candidate <= now) {
+      candidate.setDate(candidate.getDate() + 1);
+    }
+
+    nextTimestamp = Math.min(nextTimestamp, candidate.getTime());
+  }
+
+  return Math.max(1000, nextTimestamp - now.getTime());
+}
+
+function buildSummaryBody(topicCount: number, openAssignmentCount: number): string {
+  if (topicCount === 0 && openAssignmentCount === 0) {
+    return 'No tasks due today. You are all caught up.';
+  }
+
+  if (topicCount > 0 && openAssignmentCount > 0) {
+    return `Today: ${topicCount} study topic(s) and ${openAssignmentCount} open assignment task(s).`;
+  }
+
+  if (topicCount > 0) {
+    return `Today: ${topicCount} study topic(s) planned.`;
+  }
+
+  return `Today: ${openAssignmentCount} open assignment task(s).`;
+}
+
+async function sendDailySummaryNotification(reminderHour: number): Promise<void> {
   if (!('Notification' in window) || Notification.permission !== 'granted') {
     return;
   }
 
-  const [exams, assignmentParts] = await Promise.all([
+  const [exams, topics, assignmentParts] = await Promise.all([
     fetchExams(),
+    fetchAllTopics(),
     fetchAllAssignmentComponents()
   ]);
+
+  const today = getTodayKey();
+  const fullSchedule = generateFullSchedulePreview(exams, topics, today);
+  const todaysPlan = fullSchedule.find((plan) => plan.date === today);
+  const todayTopicCount = todaysPlan?.topics.length ?? 0;
 
   const assignmentExamIds = new Set(
     exams
@@ -38,22 +85,15 @@ async function sendAssignmentReminderNotification(): Promise<void> {
   const relevantParts = assignmentParts.filter((part) => assignmentExamIds.has(part.exam_id));
   const openParts = relevantParts.filter((part) => part.status !== 'completed');
 
-  if (relevantParts.length === 0) {
-    return;
-  }
-
-  const title = 'Assignment reminder';
-  const body =
-    openParts.length > 0
-      ? `You have ${openParts.length}/${relevantParts.length} task parts still open.`
-      : 'Nice work — all assignment task parts are completed.';
+  const title = 'Daily study summary';
+  const body = buildSummaryBody(todayTopicCount, openParts.length);
 
   new Notification(title, {
     body,
-    tag: 'assignment-daily-reminder'
+    tag: `daily-summary-reminder-${reminderHour}`
   });
 
-  localStorage.setItem(LAST_SENT_KEY, getTodayKey());
+  localStorage.setItem(getLastSentKey(reminderHour), getTodayKey());
 }
 
 export async function requestNotificationPermission(): Promise<NotificationPermission | 'unsupported'> {
@@ -75,23 +115,47 @@ export function startDailyAssignmentReminder(): () => void {
 
   let timeoutId: number | null = null;
 
+  const maybeSendDueSummary = async () => {
+    const now = new Date();
+    const dueHour = getLatestDueReminderHour(now);
+
+    if (dueHour === null) {
+      return;
+    }
+
+    const today = getTodayKey(now);
+    const lastSentDate = localStorage.getItem(getLastSentKey(dueHour));
+
+    if (lastSentDate !== today) {
+      await sendDailySummaryNotification(dueHour);
+    }
+  };
+
   const scheduleNext = () => {
     const delay = getNextReminderDelayMs();
     timeoutId = window.setTimeout(async () => {
       try {
-        const lastSentDate = localStorage.getItem(LAST_SENT_KEY);
-        const today = getTodayKey();
+        const dueHour = getLatestDueReminderHour();
 
-        if (lastSentDate !== today) {
-          await sendAssignmentReminderNotification();
+        if (dueHour !== null) {
+          const lastSentDate = localStorage.getItem(getLastSentKey(dueHour));
+          const today = getTodayKey();
+
+          if (lastSentDate !== today) {
+            await sendDailySummaryNotification(dueHour);
+          }
         }
       } catch (error) {
-        console.error('Assignment reminder failed:', error);
+        console.error('Daily summary reminder failed:', error);
       } finally {
         scheduleNext();
       }
     }, delay);
   };
+
+  void maybeSendDueSummary().catch((error) => {
+    console.error('Initial daily summary reminder failed:', error);
+  });
 
   scheduleNext();
 
