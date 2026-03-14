@@ -8,7 +8,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['icon-192.png', 'icon-512.png'],
+      includeAssets: ['icon1.png', 'icon-192.png', 'icon-512.png'],
       manifest: {
         name: 'Study Planner',
         short_name: 'StudyPlanner',
@@ -19,14 +19,14 @@ export default defineConfig({
         start_url: '/',
         icons: [
           {
-            src: '/icon-192.png',
-            sizes: '192x192',
+            src: '/icon1.png',
+            sizes: '2000x2000',
             type: 'image/png',
             purpose: 'any'
           },
           {
-            src: '/icon-512.png',
-            sizes: '512x512',
+            src: '/icon1.png',
+            sizes: '2000x2000',
             type: 'image/png',
             purpose: 'any maskable'
           }
