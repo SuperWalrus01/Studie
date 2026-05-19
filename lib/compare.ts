@@ -284,6 +284,12 @@ export async function getOptionsForTrip(
     nowSec
   );
 
+  if (trip.id === "toLynchgate") {
+    const options = rankOptions(raw);
+    const connectorOptions = await getNewUnionToStJohnsOptions();
+    return { options, connectorOptions };
+  }
+
   return { options: rankOptions(raw) };
 }
 

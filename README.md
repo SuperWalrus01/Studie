@@ -35,6 +35,18 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) on your phone (same Wi‑Fi) or desktop.
 
+## Deploy on Vercel
+
+This is a **Next.js** app — do not set Output Directory to `dist`.
+
+1. Import the repo on [vercel.com](https://vercel.com)
+2. Framework preset: **Next.js** (auto-detected if `vercel.json` is present)
+3. Add environment variables from `.env.example`:
+   - `TFWM_APP_ID`, `TFWM_APP_KEY`, `BODS_API_KEY`
+4. Deploy
+
+If you see “No Output Directory named dist”, open **Project Settings → Build & Development** and clear **Output Directory** (leave blank for Next.js).
+
 **Live map** (`/map`) shows real-time bus positions from BODS (updates every ~10s).
 
 If you see an authentication error, log in at [api-portal.tfwm.org.uk](https://api-portal.tfwm.org.uk/) and confirm your application has access to the **GTFS** and **GTFS-RT** products. Use the **Application Id** and **Key** exactly as shown there.
@@ -59,6 +71,10 @@ node --env-file=.env.local scripts/verify-stops.mjs
 
 Lists which configured stop pairs have timetable data.
 
-## Add to home screen (iPhone)
+## Install as app (PWA)
 
-Open in Safari → Share → **Add to Home Screen**.
+**iPhone:** Safari → Share → **Add to Home Screen**
+
+**Android:** Chrome menu → **Install app** or **Add to Home screen**
+
+The app works offline for the shell only; bus times still need internet.

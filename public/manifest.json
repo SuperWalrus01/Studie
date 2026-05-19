@@ -1,10 +1,46 @@
 {
+  "id": "/",
   "name": "Bus Compare",
   "short_name": "Buses",
-  "description": "Compare Coventry buses to Warwick and Lynchgate",
+  "description": "Coventry buses — Warwick, Lynchgate, live map",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#171717",
-  "orientation": "portrait"
+  "orientation": "portrait-primary",
+  "categories": ["travel", "navigation"],
+  "icons": [
+    {
+      "src": "/icon",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/apple-icon",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Fastest now",
+      "short_name": "Fastest",
+      "url": "/fastest",
+      "icons": [{ "src": "/icon", "sizes": "512x512", "type": "image/png" }]
+    },
+    {
+      "name": "Live map",
+      "short_name": "Map",
+      "url": "/map",
+      "icons": [{ "src": "/icon", "sizes": "512x512", "type": "image/png" }]
+    }
+  ]
 }

@@ -137,9 +137,9 @@ export const TRIPS: Record<TripId, TripConfig> = {
           label: "Warwick Uni",
         },
         {
-          stopId: STOPS.warwickUW3,
+          stopId: STOPS.warwickScarmanGH3,
           routes: ["12X"],
-          label: "Warwick Uni",
+          label: "Warwick Uni (12X · Scarman Rd)",
         },
         {
           stopId: STOPS.warwickUW4,
@@ -167,10 +167,15 @@ export const TRIPS: Record<TripId, TripConfig> = {
     },
     destinations: {
       cityVillage: [
-        /** 11 does not loop Pool Meadow → St Johns; alight New Union, cross street, 17/21 */
+        /** 11 / 12X alight New Union; cross street for 17/21 to St Johns */
         {
           stopId: STOPS.newUnionBY2,
           routes: ["11", "12X"],
+          label: "New Union St",
+        },
+        {
+          stopId: STOPS.newUnionBY4,
+          routes: ["12X"],
           label: "New Union St",
         },
         {

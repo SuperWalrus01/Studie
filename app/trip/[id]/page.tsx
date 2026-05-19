@@ -207,14 +207,24 @@ export default function TripPage() {
       {displayConnector.length > 0 && (
         <>
           <p className="text-xs text-neutral-500 uppercase tracking-wide mt-6 mb-2">
-            Cross street · then to St Johns
+            {trip.id === "toLynchgate"
+              ? "17 / 21 · New Union St (opposite side)"
+              : "Cross street · then to St Johns"}
           </p>
           <p className="text-xs text-neutral-400 mb-2">
-            After the 11 or 12X, cross New Union St and board 17 / 21 on the
-            opposite side (BY1 / BY5).
+            {trip.id === "toLynchgate"
+              ? "For Lynchgate use route 11 from St Johns Church above. These city-centre buses (17/21) run from the opposite side of New Union St."
+              : "After the 11 or 12X, cross New Union St and board 17 / 21 on the opposite side (BY1 / BY5)."}
           </p>
           <OptionList options={displayConnector} />
         </>
+      )}
+
+      {trip.id === "goingHome" && origin === "warwick" && (
+        <p className="text-xs text-neutral-400 mt-4">
+          Route <strong>12X</strong> boards at Scarman Rd (not the main uni
+          stops) — same stop as route 11 towards the city.
+        </p>
       )}
 
       <button
