@@ -3,9 +3,29 @@ import fs from "fs/promises";
 import path from "path";
 import { ALL_STOP_IDS, CITY_CONNECTOR_ROUTES, ROUTE_NAMES } from "./stops";
 
-const CACHE_DIR = path.join(process.cwd(), ".cache");
-const CACHE_FILE = path.join(CACHE_DIR, "gtfs-subset.json");
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+
+/** Vercel/Lambda only allow writes under /tmp */
+function getCacheDir(): string {
+  if (
+    process.env.VERCEL ||
+    process.env.AWS_LAMBDA_FUNCTION_NAME ||
+    process.env.LAMBDA_TASK_ROOT
+  ) {
+    return path.join("/tmp", "busapp-cache");
+  }
+  return path.join(process.cwd(), ".cache");
+}
+
+function cachePath(name: string): string {
+  return path.join(getCacheDir(), name);
+}
+
+async function ensureCacheDir(): Promise<string> {
+  const dir = getCacheDir();
+  await fs.mkdir(dir, { recursive: true });
+  return dir;
+}
 
 const GTFS_URL = "http://api.tfwm.org.uk/gtfs/tfwm_gtfs.zip";
 
@@ -25,7 +45,9 @@ const ROUTE_AGENCY: Record<string, string> = {
   "21A": "OP4",
   "21S": "OP4",
 };
-const GTFS_ZIP_CACHE = path.join(CACHE_DIR, "tfwm.zip");
+const gtfsZipCachePath = () => cachePath("tfwm.zip");
+const gtfsSubsetCachePath = () => cachePath("gtfs-subset.json");
+const calendarCachePath = () => cachePath("calendar.json");
 
 export interface TripEdge {
   tripId: string;
@@ -140,9 +162,10 @@ function readZipEntry(zip: AdmZip, name: string): string | null {
 
 async function downloadGtfsZip(appId: string, appKey: string): Promise<AdmZip> {
   try {
-    const stat = await fs.stat(GTFS_ZIP_CACHE);
+    const zipPath = gtfsZipCachePath();
+    const stat = await fs.stat(zipPath);
     if (Date.now() - stat.mtimeMs < CACHE_TTL_MS) {
-      return new AdmZip(await fs.readFile(GTFS_ZIP_CACHE));
+      return new AdmZip(await fs.readFile(zipPath));
     }
   } catch {
     // download fresh
@@ -162,8 +185,8 @@ async function downloadGtfsZip(appId: string, appKey: string): Promise<AdmZip> {
     );
   }
   const buf = Buffer.from(await res.arrayBuffer());
-  await fs.mkdir(CACHE_DIR, { recursive: true });
-  await fs.writeFile(GTFS_ZIP_CACHE, buf);
+  await ensureCacheDir();
+  await fs.writeFile(gtfsZipCachePath(), buf);
   return new AdmZip(buf);
 }
 
@@ -280,9 +303,9 @@ async function saveCalendarData(
   calendars: CalendarRow[],
   calendarDates: CalendarDateRow[]
 ) {
-  await fs.mkdir(CACHE_DIR, { recursive: true });
+  await ensureCacheDir();
   await fs.writeFile(
-    path.join(CACHE_DIR, "calendar.json"),
+    calendarCachePath(),
     JSON.stringify({ calendars, calendarDates })
   );
   calendarRows = calendars;
@@ -292,7 +315,7 @@ async function saveCalendarData(
 async function loadCalendarData() {
   if (calendarRows) return;
   try {
-    const raw = await fs.readFile(path.join(CACHE_DIR, "calendar.json"), "utf-8");
+    const raw = await fs.readFile(calendarCachePath(), "utf-8");
     const data = JSON.parse(raw);
     calendarRows = data.calendars;
     calendarDateRows = data.calendarDates;
@@ -388,13 +411,14 @@ async function buildAndCacheSubset(): Promise<GtfsSubset> {
     edges,
   };
 
-  await fs.mkdir(CACHE_DIR, { recursive: true });
-  await fs.writeFile(CACHE_FILE, JSON.stringify(subset));
+  await ensureCacheDir();
+  const subsetPath = gtfsSubsetCachePath();
+  await fs.writeFile(subsetPath, JSON.stringify(subset));
   await saveCalendarData(calendars, calendarDates);
 
   memoryCache = subset;
   try {
-    const stat = await fs.stat(CACHE_FILE);
+    const stat = await fs.stat(subsetPath);
     memoryCacheMtimeMs = stat.mtimeMs;
   } catch {
     memoryCacheMtimeMs = null;
@@ -405,7 +429,8 @@ async function buildAndCacheSubset(): Promise<GtfsSubset> {
 export async function loadGtfsSubset(forceRefresh = false): Promise<GtfsSubset> {
   if (!forceRefresh) {
     try {
-      const stat = await fs.stat(CACHE_FILE);
+      const subsetPath = gtfsSubsetCachePath();
+      const stat = await fs.stat(subsetPath);
       const freshOnDisk = Date.now() - stat.mtimeMs < CACHE_TTL_MS;
       const memoryStale =
         !memoryCache ||
@@ -417,7 +442,7 @@ export async function loadGtfsSubset(forceRefresh = false): Promise<GtfsSubset> 
       }
 
       if (freshOnDisk) {
-        const raw = await fs.readFile(CACHE_FILE, "utf-8");
+        const raw = await fs.readFile(subsetPath, "utf-8");
         memoryCache = JSON.parse(raw) as GtfsSubset;
         memoryCacheMtimeMs = stat.mtimeMs;
         await loadCalendarData();

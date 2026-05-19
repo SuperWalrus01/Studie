@@ -47,6 +47,8 @@ This is a **Next.js** app — do not set Output Directory to `dist`.
 
 If you see “No Output Directory named dist”, open **Project Settings → Build & Development** and clear **Output Directory** (leave blank for Next.js).
 
+The first bus request on Vercel can take **30–60 seconds** while GTFS data downloads (cached in `/tmp` after that). Ensure `TFWM_APP_ID`, `TFWM_APP_KEY`, and `BODS_API_KEY` are set in Vercel environment variables.
+
 **Live map** (`/map`) shows real-time bus positions from BODS (updates every ~10s).
 
 If you see an authentication error, log in at [api-portal.tfwm.org.uk](https://api-portal.tfwm.org.uk/) and confirm your application has access to the **GTFS** and **GTFS-RT** products. Use the **Application Id** and **Key** exactly as shown there.
