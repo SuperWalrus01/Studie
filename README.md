@@ -1,36 +1,56 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Bus Compare
 
-## Getting Started
+A simple mobile-friendly web app to compare Coventry buses for regular trips:
 
-First, run the development server:
+- **To Warwick** from City Village (St Johns Church) or New Union Street
+- **To Lynchgate** from City Village
+- **Going home** to City Village or New Union Street from Warwick or Lynchgate
+
+Shows upcoming departures sorted by **fastest arrival**, using TfWM schedules and live delays.
+
+## Setup
+
+1. Copy `.env.example` to `.env.local` and add your [TfWM API](https://api-portal.tfwm.org.uk/) credentials:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cp .env.example .env.local
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+```env
+TFWM_APP_ID=your_app_id
+TFWM_APP_KEY=your_app_key
+BODS_API_KEY=your_bods_api_key
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Get a free **BODS** key from [bus-data.dft.gov.uk](https://data.bus-data.dft.gov.uk/) (Account → API key) for the live bus map.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+2. Install and run:
 
-## Learn More
+```bash
+npm install
+npm run dev
+```
 
-To learn more about Next.js, take a look at the following resources:
+**Restart `npm run dev` after creating or editing `.env.local`** — Next.js only reads env vars at startup.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Open [http://localhost:3000](http://localhost:3000) on your phone (same Wi‑Fi) or desktop.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+**Live map** (`/map`) shows real-time bus positions from BODS (updates every ~10s).
 
-## Deploy on Vercel
+If you see an authentication error, log in at [api-portal.tfwm.org.uk](https://api-portal.tfwm.org.uk/) and confirm your application has access to the **GTFS** and **GTFS-RT** products. Use the **Application Id** and **Key** exactly as shown there.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+The first request downloads GTFS data (~30s); later requests use a 24h cache in `.cache/`.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Verify stops
+
+After the first GTFS download:
+
+```bash
+node --env-file=.env.local scripts/verify-stops.mjs
+```
+
+Lists which configured stop pairs have timetable data.
+
+## Add to home screen (iPhone)
+
+Open in Safari → Share → **Add to Home Screen**.
