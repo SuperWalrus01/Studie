@@ -15,14 +15,15 @@ import type { LiveVehicle } from "@/lib/bods";
 import {
   MAP_CENTER,
   MAP_ZOOM,
+  MAP_PICKER_STOPS,
   STOP_COORDS,
   type StopCoord,
 } from "@/lib/stopCoords";
 import type { StopDeparture } from "@/lib/stopTimes";
 import {
-  favoriteStopMarkerHtml,
-  genericStopMarkerHtml,
   getStopMarkerStyle,
+  stopMarkerDimensions,
+  stopMarkerHtml,
 } from "@/lib/stopMarkers";
 import "leaflet/dist/leaflet.css";
 
@@ -317,21 +318,24 @@ function MapContent() {
       stopLayerRef.current!.clearLayers();
 
       for (const stop of STOP_COORDS) {
-        const markerStyle = getStopMarkerStyle(stop.id);
-        const isFavorite = markerStyle != null;
+        const { iconSize, iconAnchor } = stopMarkerDimensions(stop);
+        const isPriority =
+          getStopMarkerStyle(stop.id, stop.label) != null ||
+          stop.label.startsWith("CS") ||
+          stop.label === "Before" ||
+          stop.label === "After";
+
         const stopIcon = L.divIcon({
           className: "bus-stop-hit",
-          html: isFavorite
-            ? favoriteStopMarkerHtml(markerStyle)
-            : genericStopMarkerHtml(),
-          iconSize: isFavorite ? [48, 52] : [36, 36],
-          iconAnchor: isFavorite ? [24, 26] : [18, 18],
+          html: stopMarkerHtml(stop),
+          iconSize,
+          iconAnchor,
         });
 
         const marker = L.marker([stop.lat, stop.lon], {
           icon: stopIcon,
           pane: "stopPane",
-          zIndexOffset: isFavorite ? 1100 : 1000,
+          zIndexOffset: isPriority ? 1100 : 1000,
         }).addTo(stopLayerRef.current!);
         bindMarkerSelect(L, marker, suppressMapClickRef, () =>
           selectStopRef.current(stop)
@@ -556,11 +560,11 @@ function MapContent() {
             Stops
           </p>
           <div className="flex flex-wrap gap-2">
-            {STOP_COORDS.map((stop) => {
-              const style = getStopMarkerStyle(stop.id);
+            {MAP_PICKER_STOPS.map((stop) => {
+              const style = getStopMarkerStyle(stop.id, stop.label);
               return (
                 <button
-                  key={stop.id}
+                  key={`${stop.id}-${stop.label}`}
                   type="button"
                   onClick={() => selectStop(stop)}
                   className={`text-xs px-2.5 py-1.5 rounded-full border touch-manipulation flex items-center gap-1 ${

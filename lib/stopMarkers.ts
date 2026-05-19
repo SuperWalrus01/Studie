@@ -1,4 +1,10 @@
-import { NEW_UNION_STOP_IDS, STOPS } from "./stops";
+import {
+  LYNCHGATE_STOP_IDS,
+  NEW_UNION_STOP_IDS,
+  ST_JOHNS_STOP_IDS,
+  STOPS,
+} from "./stops";
+import type { StopCoord } from "./stopCoords";
 
 export interface StopMarkerStyle {
   emoji: string;
@@ -6,24 +12,53 @@ export interface StopMarkerStyle {
   label: string;
 }
 
-/** Distinct map markers for your regular stops */
 const NEW_UNION_STYLE: StopMarkerStyle = {
   emoji: "🚏",
   bg: "#059669",
   label: "New Union",
 };
 
-const FAVORITE_STOP_MARKERS: Record<string, StopMarkerStyle> = {
-  [STOPS.stJohnsCS2]: { emoji: "⛪", bg: "#1d4ed8", label: "St Johns" },
-  [STOPS.newUnionBY2]: NEW_UNION_STYLE,
-  [STOPS.warwickUW1]: { emoji: "🎓", bg: "#7c3aed", label: "Warwick" },
-  [STOPS.lynchgateBefore]: { emoji: "🏠", bg: "#ea580c", label: "Lynchgate" },
+const ST_JOHNS_STYLE: StopMarkerStyle = {
+  emoji: "⛪",
+  bg: "#1d4ed8",
+  label: "St Johns",
 };
 
-export function getStopMarkerStyle(stopId: string): StopMarkerStyle | null {
+const LYNCHGATE_STYLE: StopMarkerStyle = {
+  emoji: "🏠",
+  bg: "#ea580c",
+  label: "Lynchgate",
+};
+
+const FAVORITE_STOP_MARKERS: Record<string, StopMarkerStyle> = {
+  [STOPS.newUnionBY2]: NEW_UNION_STYLE,
+  [STOPS.warwickUW1]: { emoji: "🎓", bg: "#7c3aed", label: "Warwick" },
+};
+
+const ST_JOHNS_BAY_LABELS = new Set(["CS1", "CS2", "CS3"]);
+const LYNCHGATE_BAY_LABELS = new Set(["Before", "After"]);
+
+export function getStopMarkerStyle(
+  stopId: string,
+  label?: string
+): StopMarkerStyle | null {
+  if (label === "St Johns Church") return ST_JOHNS_STYLE;
+  if (label === "Lynchgate Rd") return LYNCHGATE_STYLE;
   if ((NEW_UNION_STOP_IDS as readonly string[]).includes(stopId))
     return NEW_UNION_STYLE;
+  if ((ST_JOHNS_STOP_IDS as readonly string[]).includes(stopId) && label)
+    return null;
+  if ((LYNCHGATE_STOP_IDS as readonly string[]).includes(stopId) && label)
+    return null;
   return FAVORITE_STOP_MARKERS[stopId] ?? null;
+}
+
+export function isStJohnsBay(stop: Pick<StopCoord, "label">): boolean {
+  return ST_JOHNS_BAY_LABELS.has(stop.label);
+}
+
+export function isLynchgateBay(stop: Pick<StopCoord, "label">): boolean {
+  return LYNCHGATE_BAY_LABELS.has(stop.label);
 }
 
 export function favoriteStopMarkerHtml(style: StopMarkerStyle): string {
@@ -33,8 +68,44 @@ export function favoriteStopMarkerHtml(style: StopMarkerStyle): string {
   </div>`;
 }
 
+function bayMarkerHtml(bay: string, color: string): string {
+  return `<div style="display:flex;flex-direction:column;align-items:center;width:40px;pointer-events:auto">
+    <div style="width:26px;height:26px;border-radius:5px;background:${color};display:flex;align-items:center;justify-content:center;border:2px solid white;box-shadow:0 1px 5px rgba(0,0,0,.35)">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="white" aria-hidden="true"><path d="M4 16c0 1.1.9 2 2 2h1v3l3-3h8c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2H6c-1.1 0-2 .9-2 2v10zm2-8h12v2H6V8zm0 4h8v2H6v-2z"/></svg>
+    </div>
+    <span style="margin-top:2px;font-size:9px;font-weight:800;color:${color};text-shadow:0 0 2px #fff,0 0 2px #fff">${bay}</span>
+  </div>`;
+}
+
+export function stJohnsBayMarkerHtml(bay: string): string {
+  return bayMarkerHtml(bay, "#2563eb");
+}
+
+export function lynchgateBayMarkerHtml(bay: string): string {
+  return bayMarkerHtml(bay, "#ea580c");
+}
+
 export function genericStopMarkerHtml(): string {
   return `<div style="width:36px;height:36px;display:flex;align-items:center;justify-content:center">
     <div style="width:12px;height:12px;border-radius:50%;background:#525252;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,.45)"></div>
   </div>`;
+}
+
+export function stopMarkerHtml(stop: StopCoord): string {
+  if (isStJohnsBay(stop)) return stJohnsBayMarkerHtml(stop.label);
+  if (isLynchgateBay(stop)) return lynchgateBayMarkerHtml(stop.label);
+  const style = getStopMarkerStyle(stop.id, stop.label);
+  if (style) return favoriteStopMarkerHtml(style);
+  return genericStopMarkerHtml();
+}
+
+export function stopMarkerDimensions(stop: StopCoord): {
+  iconSize: [number, number];
+  iconAnchor: [number, number];
+} {
+  if (isStJohnsBay(stop) || isLynchgateBay(stop))
+    return { iconSize: [40, 44], iconAnchor: [20, 22] };
+  const style = getStopMarkerStyle(stop.id, stop.label);
+  if (style) return { iconSize: [48, 52], iconAnchor: [24, 26] };
+  return { iconSize: [36, 36], iconAnchor: [18, 18] };
 }
