@@ -1,7 +1,11 @@
 import AdmZip from "adm-zip";
 import fs from "fs/promises";
 import path from "path";
-import { ALL_STOP_IDS, CITY_CONNECTOR_ROUTES, ROUTE_NAMES } from "./stops";
+import {
+  ALL_STOP_IDS,
+  CITY_CONNECTOR_ROUTES,
+  ROUTE_NAMES,
+} from "./stops.constants.mjs";
 
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
