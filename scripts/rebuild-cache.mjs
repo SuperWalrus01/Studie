@@ -7,7 +7,7 @@ async function main() {
   const subset = await loadGtfsSubset(true);
   console.log("edges:", subset.edges.length);
 
-  const nu = ["43000002101", "43000002102", "43000002105", "43000002103"];
+  const nu = ["43000002101", "43000002104"]; // BY1, BY5 — city-centre side
   const sj = ["43000003201", "43000003202", "43000003203", "43000003206"];
   const connector = subset.edges.filter(
     (e) => nu.includes(e.originStopId) && sj.includes(e.destStopId)

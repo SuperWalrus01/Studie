@@ -167,11 +167,11 @@ export const TRIPS: Record<TripId, TripConfig> = {
     },
     destinations: {
       cityVillage: [
+        /** 11 does not loop Pool Meadow → St Johns; alight New Union, cross street, 17/21 */
         {
           stopId: STOPS.newUnionBY2,
           routes: ["11", "12X"],
           label: "New Union St",
-          walkMinutes: 6,
         },
         {
           stopId: STOPS.stJohnsCS1,
@@ -206,16 +206,21 @@ export function getTrip(id: string): TripConfig | undefined {
 
 export const TRIP_LIST: TripId[] = ["toWarwick", "toLynchgate", "goingHome"];
 
-/** New Union stops on the city-centre side (17 / 21 → St Johns), not BY2/BY4 (Warwick direction) */
+/** Opposite side of New Union St after crossing from route 11 / 12X (BY2/BY4) */
 export const NEW_UNION_TO_ST_JOHNS_BOARDS: BoardingStop[] = [
   {
     stopId: STOPS.newUnionBY1,
     routes: [...CITY_CONNECTOR_ROUTES],
-    label: "New Union St",
+    label: "New Union St (opposite side)",
+    walkMinutes: 2,
   },
   {
     stopId: STOPS.newUnionBY5,
     routes: [...CITY_CONNECTOR_ROUTES],
-    label: "New Union St",
+    label: "New Union St (opposite side)",
+    walkMinutes: 2,
   },
 ];
+
+/** Routes that end at New Union; need connector to reach St Johns / City Village */
+export const NEW_UNION_TRANSFER_ROUTES = ["11", "12X"] as const;

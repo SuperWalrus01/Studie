@@ -7,7 +7,10 @@ import {
 } from "./gtfs";
 import { fetchTripDelays } from "./gtfsRt";
 import type { BoardingStop, TripConfig, TripDestination } from "./journeys";
-import { NEW_UNION_TO_ST_JOHNS_BOARDS } from "./journeys";
+import {
+  NEW_UNION_TO_ST_JOHNS_BOARDS,
+  NEW_UNION_TRANSFER_ROUTES,
+} from "./journeys";
 import { ST_JOHNS_STOP_IDS } from "./stops";
 import { STOPS } from "./stops";
 import { type BusOption } from "./busOption";
@@ -19,9 +22,11 @@ const MAX_OPTIONS = 8;
 
 export interface TripOptionsResult {
   options: BusOption[];
-  /** New Union → St Johns (when going home via New Union St) */
+  /** Cross street · 17/21 to St Johns after 11 / 12X */
   connectorOptions?: BusOption[];
 }
+
+const CROSS_STREET_MIN = 3;
 
 function secToTime(sec: number): string {
   const normalized = ((sec % (24 * 3600)) + 24 * 3600) % (24 * 3600);
@@ -115,6 +120,76 @@ function parseTimeToComparable(time: string): number {
   return h * 60 + m;
 }
 
+function minutesBetween(earlier: string, later: string): number {
+  let diff = parseTimeToComparable(later) - parseTimeToComparable(earlier);
+  if (diff < 0) diff += 24 * 60;
+  return diff;
+}
+
+function isTransferRoute(route: string): boolean {
+  return NEW_UNION_TRANSFER_ROUTES.some(
+    (r) => r.toUpperCase() === route.toUpperCase()
+  );
+}
+
+function chainToStJohns(
+  main: Omit<BusOption, "fastest">,
+  connectors: Omit<BusOption, "fastest">[]
+): Omit<BusOption, "fastest"> | null {
+  let best: Omit<BusOption, "fastest"> | null = null;
+
+  for (const conn of connectors) {
+    const wait = minutesBetween(main.arriveAt, conn.departAt);
+    if (wait < CROSS_STREET_MIN) continue;
+
+    const chained: Omit<BusOption, "fastest"> = {
+      route: `${main.route} → ${conn.route}`,
+      boardStopLabel: main.boardStopLabel,
+      departAt: main.departAt,
+      arriveAt: conn.arriveAt,
+      arriveLabel: "St Johns Church",
+      leaveInMinutes: main.leaveInMinutes,
+      durationMinutes: main.durationMinutes + wait + conn.durationMinutes,
+      live: main.live || conn.live,
+      chained: true,
+    };
+
+    if (
+      !best ||
+      parseTimeToComparable(chained.arriveAt) <
+        parseTimeToComparable(best.arriveAt)
+    ) {
+      best = chained;
+    }
+  }
+
+  return best;
+}
+
+function buildGoingHomeCityVillageOptions(
+  raw: Omit<BusOption, "fastest">[],
+  connectors: Omit<BusOption, "fastest">[]
+): Omit<BusOption, "fastest">[] {
+  const direct = raw.filter((o) => !isTransferRoute(o.route));
+  const transferLegs = raw.filter((o) => isTransferRoute(o.route));
+  const chained: Omit<BusOption, "fastest">[] = [];
+
+  for (const leg of transferLegs) {
+    const combo = chainToStJohns(leg, connectors);
+    if (combo) {
+      chained.push(combo);
+    } else {
+      chained.push({
+        ...leg,
+        arriveLabel: "New Union St",
+        viaNewUnion: true,
+      });
+    }
+  }
+
+  return [...direct, ...chained];
+}
+
 function rankOptions(raw: Omit<BusOption, "fastest">[]): BusOption[] {
   const sorted = [...raw].sort((a, b) => {
     const arriveA = parseTimeToComparable(a.arriveAt);
@@ -170,11 +245,28 @@ export async function getOptionsForTrip(
       }
     }
 
-    const options = rankOptions(all);
+    const connectors = await getNewUnionToStJohnsOptions();
+    const connectorRaw = connectors.map(({ fastest: _, ...rest }) => rest);
+
+    let merged = all;
+    if (destinationKey === "cityVillage") {
+      merged = buildGoingHomeCityVillageOptions(all, connectorRaw);
+    } else {
+      merged = all.map((o) =>
+        isTransferRoute(o.route)
+          ? { ...o, arriveLabel: "New Union St", viaNewUnion: true }
+          : o
+      );
+    }
+
+    const options = rankOptions(merged);
     const result: TripOptionsResult = { options };
 
-    if (destinationKey === "newUnion") {
-      result.connectorOptions = await getNewUnionToStJohnsOptions();
+    if (
+      destinationKey === "newUnion" ||
+      destinationKey === "cityVillage"
+    ) {
+      result.connectorOptions = connectors;
     }
 
     return result;

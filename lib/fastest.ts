@@ -64,7 +64,7 @@ export async function getFastestNow(): Promise<FastestPick | null> {
       });
     }
 
-    if (connectorOptions?.length) {
+    if (connectorOptions?.length && scenario.destination === "newUnion") {
       const conn = pickFastest(connectorOptions);
       if (conn) {
         candidates.push({

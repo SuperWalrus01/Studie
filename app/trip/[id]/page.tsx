@@ -183,9 +183,21 @@ export default function TripPage() {
 
       {displayOptions.length > 0 && (
         <>
+          {trip.id === "goingHome" && destination === "cityVillage" && (
+            <p className="text-xs text-neutral-500 uppercase tracking-wide mb-2 mt-2">
+              To City Village
+            </p>
+          )}
           {trip.id === "goingHome" && destination === "newUnion" && (
             <p className="text-xs text-neutral-500 uppercase tracking-wide mb-2 mt-2">
               To New Union St
+            </p>
+          )}
+          {trip.id === "goingHome" && destination === "cityVillage" && (
+            <p className="text-xs text-neutral-400 mb-3">
+              Route 11 ends at New Union St — not Pool Meadow or St Johns.
+              Options show 11/12X plus a cross-street change (17/21), or 14/87
+              direct to St Johns.
             </p>
           )}
           <OptionList options={displayOptions} />
@@ -195,10 +207,11 @@ export default function TripPage() {
       {displayConnector.length > 0 && (
         <>
           <p className="text-xs text-neutral-500 uppercase tracking-wide mt-6 mb-2">
-            Then to City Village (St Johns Church)
+            Cross street · then to St Johns
           </p>
           <p className="text-xs text-neutral-400 mb-2">
-            17 / 21 from New Union St (city-centre side)
+            After the 11 or 12X, cross New Union St and board 17 / 21 on the
+            opposite side (BY1 / BY5).
           </p>
           <OptionList options={displayConnector} />
         </>
@@ -253,10 +266,20 @@ function OptionList({ options }: { options: BusOption[] }) {
           </p>
           <p className="text-lg font-semibold mt-1">
             Arrive {opt.arriveAt}
-            <span className="text-sm font-normal text-neutral-500 ml-2">
+            {opt.arriveLabel && (
+              <span className="text-sm font-normal text-neutral-500 ml-1">
+                · {opt.arriveLabel}
+              </span>
+            )}
+            <span className="text-sm font-normal text-neutral-500 ml-2 block sm:inline">
               {opt.durationMinutes} min trip
             </span>
           </p>
+          {opt.viaNewUnion && !opt.chained && (
+            <p className="text-sm text-amber-800 dark:text-amber-200 mt-2">
+              Alight here — cross the street for 17/21 to St Johns below.
+            </p>
+          )}
         </li>
       ))}
     </ul>

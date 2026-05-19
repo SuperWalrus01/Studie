@@ -62,6 +62,8 @@ interface CalendarDateRow {
 }
 
 let memoryCache: GtfsSubset | null = null;
+/** Reload from disk when .cache/gtfs-subset.json is replaced (e.g. after rebuild-cache) */
+let memoryCacheMtimeMs: number | null = null;
 let calendarRows: CalendarRow[] | null = null;
 let calendarDateRows: CalendarDateRow[] | null = null;
 
@@ -391,18 +393,33 @@ async function buildAndCacheSubset(): Promise<GtfsSubset> {
   await saveCalendarData(calendars, calendarDates);
 
   memoryCache = subset;
+  try {
+    const stat = await fs.stat(CACHE_FILE);
+    memoryCacheMtimeMs = stat.mtimeMs;
+  } catch {
+    memoryCacheMtimeMs = null;
+  }
   return subset;
 }
 
 export async function loadGtfsSubset(forceRefresh = false): Promise<GtfsSubset> {
-  if (!forceRefresh && memoryCache) return memoryCache;
-
   if (!forceRefresh) {
     try {
       const stat = await fs.stat(CACHE_FILE);
-      if (Date.now() - stat.mtimeMs < CACHE_TTL_MS) {
+      const freshOnDisk = Date.now() - stat.mtimeMs < CACHE_TTL_MS;
+      const memoryStale =
+        !memoryCache ||
+        memoryCacheMtimeMs == null ||
+        memoryCacheMtimeMs !== stat.mtimeMs;
+
+      if (freshOnDisk && !memoryStale && memoryCache) {
+        return memoryCache;
+      }
+
+      if (freshOnDisk) {
         const raw = await fs.readFile(CACHE_FILE, "utf-8");
         memoryCache = JSON.parse(raw) as GtfsSubset;
+        memoryCacheMtimeMs = stat.mtimeMs;
         await loadCalendarData();
         return memoryCache;
       }
