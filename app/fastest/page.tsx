@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import type { FastestPick } from "@/lib/fastest";
 import type { BusOption } from "@/lib/busOption";
+import { fetchApi } from "@/lib/fetchApi";
 
 export default function FastestPage() {
   const [pick, setPick] = useState<FastestPick | null>(null);
@@ -14,16 +15,18 @@ export default function FastestPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/fastest");
-      const data = await res.json();
+      const { res, data } = await fetchApi<{
+        error?: string;
+        pick?: FastestPick | null;
+      }>("/api/fastest");
       if (!res.ok) {
         setError(data.error ?? "Something went wrong");
         setPick(null);
       } else {
         setPick(data.pick ?? null);
       }
-    } catch {
-      setError("Could not reach server");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not reach server");
       setPick(null);
     } finally {
       setLoading(false);

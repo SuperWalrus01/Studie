@@ -19,6 +19,7 @@ import {
   STOP_COORDS,
   type StopCoord,
 } from "@/lib/stopCoords";
+import { fetchApi } from "@/lib/fetchApi";
 import type { StopDeparture } from "@/lib/stopTimes";
 import {
   getStopMarkerStyle,
@@ -137,11 +138,11 @@ function MapContent() {
       if (routesParam) params.set("routes", routesParam);
       const qs = params.toString() ? `?${params}` : "";
       try {
-        const res = await fetch(
-          bustUrl(`/api/vehicles${qs}`, force),
-          fetchOpts(force)
-        );
-        const data = await res.json();
+        const { res, data } = await fetchApi<{
+          error?: string;
+          vehicles?: LiveVehicle[];
+          updatedAt?: string;
+        }>(bustUrl(`/api/vehicles${qs}`, force), fetchOpts(force));
         if (!res.ok) {
           setError(data.error ?? "Could not load buses");
           return;
@@ -149,8 +150,10 @@ function MapContent() {
         setError(null);
         setVehicles(data.vehicles ?? []);
         setUpdatedAt(data.updatedAt ?? null);
-      } catch {
-        setError("Could not reach server");
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : "Could not reach server"
+        );
       }
     },
     [routesParam]
@@ -259,18 +262,14 @@ function MapContent() {
     setStopDeparturesError(null);
     setStopDepartures([]);
 
-    fetch(`/api/stop-times?stopId=${encodeURIComponent(stopId)}`, {
-      cache: "no-store",
-      signal: controller.signal,
-    })
-      .then(async (res) => {
-        const data = await res.json();
+    fetchApi<{ error?: string; departures?: StopDeparture[] }>(
+      `/api/stop-times?stopId=${encodeURIComponent(stopId)}`,
+      { cache: "no-store", signal: controller.signal }
+    )
+      .then(({ res, data }) => {
         if (!res.ok) {
           throw new Error(data.error ?? "Could not load timetable");
         }
-        return data;
-      })
-      .then((data) => {
         setStopDepartures(data.departures ?? []);
       })
       .catch((err) => {

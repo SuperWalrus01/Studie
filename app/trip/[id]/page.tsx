@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { pickFastest, type BusOption } from "@/lib/busOption";
+import { fetchApi } from "@/lib/fetchApi";
 import {
   getTrip,
   type DestinationKey,
@@ -66,8 +67,11 @@ export default function TripPage() {
     if (trip.id === "goingHome") qs.set("destination", destination);
 
     try {
-      const res = await fetch(`/api/options?${qs}`);
-      const data = await res.json();
+      const { res, data } = await fetchApi<{
+        error?: string;
+        options?: BusOption[];
+        connectorOptions?: BusOption[];
+      }>(`/api/options?${qs}`);
       if (!res.ok) {
         setError(data.error ?? "Something went wrong");
         setOptions([]);
@@ -76,8 +80,8 @@ export default function TripPage() {
         setOptions(data.options ?? []);
         setConnectorOptions(data.connectorOptions ?? []);
       }
-    } catch {
-      setError("Could not reach server");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not reach server");
       setOptions([]);
       setConnectorOptions([]);
     } finally {
