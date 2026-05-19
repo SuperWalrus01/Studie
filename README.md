@@ -45,11 +45,25 @@ This is a **Next.js** app — do not set Output Directory to `dist`.
 2. Framework preset: **Next.js** (auto-detected if `vercel.json` is present)
 3. Add environment variables from `.env.example`:
    - `TFWM_APP_ID`, `TFWM_APP_KEY`, `BODS_API_KEY`
-4. Deploy
+4. Add **all three** environment variables for **Production** (and Preview if you use preview URLs):
+   - `TFWM_APP_ID`, `TFWM_APP_KEY`, `BODS_API_KEY`
+5. Deploy
 
 If you see “No Output Directory named dist”, open **Project Settings → Build & Development** and clear **Output Directory** (leave blank for Next.js).
 
-The first bus request on Vercel can take **30–60 seconds** while GTFS data downloads (cached in `/tmp` after that). Ensure `TFWM_APP_ID`, `TFWM_APP_KEY`, and `BODS_API_KEY` are set in Vercel environment variables.
+### Why it works locally but not on Vercel
+
+| Local | Vercel production |
+|-------|-------------------|
+| `.env.local` is always loaded | Env vars must be set in the Vercel dashboard |
+| GTFS cache persists in `.cache/` for days | Each serverless instance starts with an **empty** `/tmp` — no saved timetable |
+| First load downloads GTFS once | Without a build-time bundle, every cold start tries to download the full TfWM zip (~30–60s) and often **times out** (HTML error page → “Unexpected token `<`”) |
+
+**Fix:** `npm run build` runs `scripts/prebuild-gtfs.mjs`, which downloads GTFS **during deploy** (when Vercel has your API keys) and ships `data/gtfs-subset.json` with the app. Timetables then load in milliseconds.
+
+**Check production:** open `https://your-app.vercel.app/api/health` — you want `"ok": true` and `"bundledSubset": true`.
+
+If `bundledSubset` is false, redeploy after adding `TFWM_APP_ID` and `TFWM_APP_KEY` to Vercel **Environment Variables** (Production), then trigger a new deployment.
 
 **Live map** (`/map`) shows real-time bus positions from BODS (updates every ~10s).
 

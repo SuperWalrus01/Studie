@@ -49,6 +49,12 @@ const gtfsZipCachePath = () => cachePath("tfwm.zip");
 const gtfsSubsetCachePath = () => cachePath("gtfs-subset.json");
 const calendarCachePath = () => cachePath("calendar.json");
 
+/** Shipped with the app from `npm run build` (see scripts/prebuild-gtfs.mjs) */
+const bundledSubsetPath = () =>
+  path.join(process.cwd(), "data", "gtfs-subset.json");
+const bundledCalendarPath = () =>
+  path.join(process.cwd(), "data", "calendar.json");
+
 export interface TripEdge {
   tripId: string;
   routeShortName: string;
@@ -314,14 +320,27 @@ async function saveCalendarData(
 
 async function loadCalendarData() {
   if (calendarRows) return;
+  for (const filePath of [calendarCachePath(), bundledCalendarPath()]) {
+    try {
+      const raw = await fs.readFile(filePath, "utf-8");
+      const data = JSON.parse(raw);
+      calendarRows = data.calendars;
+      calendarDateRows = data.calendarDates;
+      return;
+    } catch {
+      // try next path
+    }
+  }
+  calendarRows = [];
+  calendarDateRows = [];
+}
+
+async function loadBundledSubset(): Promise<GtfsSubset | null> {
   try {
-    const raw = await fs.readFile(calendarCachePath(), "utf-8");
-    const data = JSON.parse(raw);
-    calendarRows = data.calendars;
-    calendarDateRows = data.calendarDates;
+    const raw = await fs.readFile(bundledSubsetPath(), "utf-8");
+    return JSON.parse(raw) as GtfsSubset;
   } catch {
-    calendarRows = [];
-    calendarDateRows = [];
+    return null;
   }
 }
 
@@ -428,6 +447,14 @@ async function buildAndCacheSubset(): Promise<GtfsSubset> {
 
 export async function loadGtfsSubset(forceRefresh = false): Promise<GtfsSubset> {
   if (!forceRefresh) {
+    const bundled = await loadBundledSubset();
+    if (bundled) {
+      memoryCache = bundled;
+      memoryCacheMtimeMs = null;
+      await loadCalendarData();
+      return bundled;
+    }
+
     try {
       const subsetPath = gtfsSubsetCachePath();
       const stat = await fs.stat(subsetPath);

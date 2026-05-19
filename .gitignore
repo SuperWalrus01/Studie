@@ -43,3 +43,5 @@ next-env.d.ts
 
 # gtfs cache
 .cache/
+/data/gtfs-subset.json
+/data/calendar.json

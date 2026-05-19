@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "node scripts/prebuild-gtfs.mjs && next build",
     "start": "next start",
     "lint": "eslint",
     "verify-stops": "node --env-file=.env.local scripts/verify-stops.mjs",
