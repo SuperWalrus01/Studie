@@ -41,6 +41,14 @@ If you see an authentication error, log in at [api-portal.tfwm.org.uk](https://a
 
 The first request downloads GTFS data (~30s); later requests use a 24h cache in `.cache/`.
 
+If **17 / 21 connector buses** (New Union → St Johns) are missing, rebuild the cache:
+
+```bash
+npm run rebuild-cache
+```
+
+No dev-server restart needed after rebuild (cache reloads automatically).
+
 ## Verify stops
 
 After the first GTFS download:
