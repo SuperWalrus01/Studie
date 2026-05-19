@@ -1,4 +1,4 @@
-import { STOPS } from "./stops";
+import { NEW_UNION_STOP_IDS, STOPS } from "./stops";
 
 export interface StopMarkerStyle {
   emoji: string;
@@ -7,14 +7,22 @@ export interface StopMarkerStyle {
 }
 
 /** Distinct map markers for your regular stops */
+const NEW_UNION_STYLE: StopMarkerStyle = {
+  emoji: "🚏",
+  bg: "#059669",
+  label: "New Union",
+};
+
 const FAVORITE_STOP_MARKERS: Record<string, StopMarkerStyle> = {
   [STOPS.stJohnsCS2]: { emoji: "⛪", bg: "#1d4ed8", label: "St Johns" },
-  [STOPS.newUnionBY1]: { emoji: "🚏", bg: "#059669", label: "New Union" },
+  [STOPS.newUnionBY2]: NEW_UNION_STYLE,
   [STOPS.warwickUW1]: { emoji: "🎓", bg: "#7c3aed", label: "Warwick" },
   [STOPS.lynchgateBefore]: { emoji: "🏠", bg: "#ea580c", label: "Lynchgate" },
 };
 
 export function getStopMarkerStyle(stopId: string): StopMarkerStyle | null {
+  if ((NEW_UNION_STOP_IDS as readonly string[]).includes(stopId))
+    return NEW_UNION_STYLE;
   return FAVORITE_STOP_MARKERS[stopId] ?? null;
 }
 

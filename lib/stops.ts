@@ -61,3 +61,20 @@ export const LYNCHGATE_STOP_IDS = [
 export type RouteName = (typeof ROUTE_NAMES)[number];
 
 export const ALL_STOP_IDS = Object.values(STOPS);
+
+/**
+ * Stops at the same place use different NaPTAN bays.
+ * Query all bays when showing a timetable for one pin.
+ */
+export const STOP_TIMETABLE_GROUPS: readonly (readonly string[])[] = [
+  NEW_UNION_STOP_IDS,
+  ST_JOHNS_STOP_IDS,
+  LYNCHGATE_STOP_IDS,
+];
+
+export function getStopIdsForTimetable(stopId: string): string[] {
+  for (const group of STOP_TIMETABLE_GROUPS) {
+    if ((group as readonly string[]).includes(stopId)) return [...group];
+  }
+  return [stopId];
+}

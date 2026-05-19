@@ -6,6 +6,7 @@ import {
 } from "./gtfs";
 import { fetchTripDelays } from "./gtfsRt";
 import { getStopLabel } from "./stopLabels";
+import { getStopIdsForTimetable } from "./stops";
 
 const HORIZON_MIN = 120;
 const MAX_DEPARTURES = 12;
@@ -42,8 +43,10 @@ export async function getStopDepartures(
 
   const candidates: StopDeparture[] = [];
 
+  const originStopIds = new Set(getStopIdsForTimetable(stopId));
+
   for (const edge of subset.edges) {
-    if (edge.originStopId !== stopId) continue;
+    if (!originStopIds.has(edge.originStopId)) continue;
     if (!serviceRunsToday(edge.serviceId, calendars, calendarDates)) continue;
 
     const delaySec = tripDelays.get(edge.tripId) ?? 0;

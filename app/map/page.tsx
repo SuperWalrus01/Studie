@@ -11,7 +11,6 @@ import {
   type MutableRefObject,
 } from "react";
 import { MapSelectionPanel } from "@/components/MapSelectionPanel";
-import type { BusOption } from "@/lib/busOption";
 import type { LiveVehicle } from "@/lib/bods";
 import {
   MAP_CENTER,
@@ -83,8 +82,6 @@ function MapContent() {
     "idle" | "requesting" | "active" | "denied" | "unsupported"
   >("idle");
   const [locPromptDismissed, setLocPromptDismissed] = useState(false);
-  const [lynchgate11, setLynchgate11] = useState<BusOption | null>(null);
-  const [connectorBuses, setConnectorBuses] = useState<BusOption[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
   const [selectedBus, setSelectedBus] = useState<LiveVehicle | null>(null);
@@ -154,29 +151,12 @@ function MapContent() {
     [routesParam]
   );
 
-  const loadLynchgateTimes = useCallback(async (force = false) => {
-    try {
-      const res = await fetch(
-        bustUrl("/api/options?trip=toLynchgate&origin=cityVillage", force),
-        fetchOpts(force)
-      );
-      const data = await res.json();
-      if (!res.ok) return;
-      const opts: BusOption[] = data.options ?? [];
-      const eleven = opts.find((o) => o.route === "11") ?? opts[0] ?? null;
-      setLynchgate11(eleven);
-      setConnectorBuses((data.connectorOptions ?? []).slice(0, 4));
-    } catch {
-      // ignore
-    }
-  }, []);
-
   const load = useCallback(
     async (force = false) => {
-      await Promise.all([loadVehicles(force), loadLynchgateTimes(force)]);
+      await loadVehicles(force);
       setLastRefresh(new Date());
     },
-    [loadVehicles, loadLynchgateTimes]
+    [loadVehicles]
   );
 
   const handleRefresh = useCallback(async () => {
@@ -570,32 +550,6 @@ function MapContent() {
           )}
         </p>
 
-        <div className="mt-3 rounded-lg bg-neutral-50 dark:bg-neutral-900 px-3 py-2">
-          <p className="text-xs font-semibold uppercase tracking-wide text-neutral-600 dark:text-neutral-400">
-            To Lynchgate Rd
-          </p>
-          {lynchgate11 ? (
-            <p className="text-sm mt-1">
-              <strong>Route 11</strong> — leaves in {lynchgate11.leaveInMinutes}{" "}
-              min ({lynchgate11.departAt}) · arrive {lynchgate11.arriveAt}
-            </p>
-          ) : (
-            <p className="text-sm text-neutral-500 mt-1">No route 11 soon</p>
-          )}
-          {connectorBuses.length > 0 && (
-            <div className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
-              <p className="text-xs mb-1">17 / 21 · New Union (opposite side):</p>
-              <ul className="space-y-0.5">
-                {connectorBuses.map((b) => (
-                  <li key={`${b.route}-${b.departAt}`}>
-                    <strong>{b.route}</strong> in {b.leaveInMinutes}m (
-                    {b.departAt})
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
 
         <div className="mt-3">
           <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500 mb-2">
