@@ -41,7 +41,5 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# gtfs cache
+# gtfs cache (bundled copy in data/ is committed for Vercel)
 .cache/
-/data/gtfs-subset.json
-/data/calendar.json
