@@ -26,12 +26,14 @@ export function MapSelectionPanel({
   stop,
   departures,
   departuresLoading,
+  departuresError,
   onClose,
 }: {
   bus: LiveVehicle | null;
   stop: StopCoord | null;
   departures: StopDeparture[];
   departuresLoading: boolean;
+  departuresError: string | null;
   onClose: () => void;
 }) {
   if (!bus && !stop) return null;
@@ -114,12 +116,19 @@ export function MapSelectionPanel({
             {departuresLoading && (
               <p className="text-sm text-neutral-500">Loading timetable…</p>
             )}
-            {!departuresLoading && departures.length === 0 && (
-              <p className="text-sm text-neutral-500">
-                No buses in the next 2 hours.
+            {!departuresLoading && departuresError && (
+              <p className="text-sm text-amber-800 dark:text-amber-200">
+                {departuresError}
               </p>
             )}
-            {!departuresLoading && departures.length > 0 && (
+            {!departuresLoading &&
+              !departuresError &&
+              departures.length === 0 && (
+                <p className="text-sm text-neutral-500">
+                  No buses in the next 2 hours.
+                </p>
+              )}
+            {!departuresLoading && !departuresError && departures.length > 0 && (
               <ul className="space-y-2">
                 {departures.map((d) => (
                   <li

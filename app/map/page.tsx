@@ -89,6 +89,9 @@ function MapContent() {
   const [selectedStop, setSelectedStop] = useState<StopCoord | null>(null);
   const [stopDepartures, setStopDepartures] = useState<StopDeparture[]>([]);
   const [stopDeparturesLoading, setStopDeparturesLoading] = useState(false);
+  const [stopDeparturesError, setStopDeparturesError] = useState<string | null>(
+    null
+  );
   const selectBusRef = useRef<(v: LiveVehicle) => void>(() => {});
   const selectStopRef = useRef<(s: StopCoord) => void>(() => {});
   const clearSelectionRef = useRef(() => {});
@@ -105,6 +108,7 @@ function MapContent() {
   }, []);
 
   const selectStop = useCallback((s: StopCoord) => {
+    suppressMapClickRef.current = true;
     setSelectedBus(null);
     setSelectedStop(s);
     leafletMap.current?.setView(
@@ -244,17 +248,46 @@ function MapContent() {
   useEffect(() => {
     if (!selectedStop) {
       setStopDepartures([]);
+      setStopDeparturesError(null);
+      setStopDeparturesLoading(false);
       return;
     }
+
+    const stopId = selectedStop.id;
+    const controller = new AbortController();
     setStopDeparturesLoading(true);
-    fetch(`/api/stop-times?stopId=${encodeURIComponent(selectedStop.id)}`, {
+    setStopDeparturesError(null);
+    setStopDepartures([]);
+
+    fetch(`/api/stop-times?stopId=${encodeURIComponent(stopId)}`, {
       cache: "no-store",
+      signal: controller.signal,
     })
-      .then((res) => res.json())
-      .then((data) => setStopDepartures(data.departures ?? []))
-      .catch(() => setStopDepartures([]))
-      .finally(() => setStopDeparturesLoading(false));
-  }, [selectedStop]);
+      .then(async (res) => {
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error ?? "Could not load timetable");
+        }
+        return data;
+      })
+      .then((data) => {
+        setStopDepartures(data.departures ?? []);
+      })
+      .catch((err) => {
+        if (err instanceof Error && err.name === "AbortError") return;
+        setStopDepartures([]);
+        setStopDeparturesError(
+          err instanceof Error ? err.message : "Could not load timetable"
+        );
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) {
+          setStopDeparturesLoading(false);
+        }
+      });
+
+    return () => controller.abort();
+  }, [selectedStop?.id, selectedStop?.label]);
 
   useEffect(() => {
     if (!mapRef.current || leafletMap.current) return;
@@ -541,6 +574,7 @@ function MapContent() {
           stop={selectedStop}
           departures={stopDepartures}
           departuresLoading={stopDeparturesLoading}
+          departuresError={stopDeparturesError}
           onClose={clearSelection}
         />
       </div>
