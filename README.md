@@ -59,7 +59,7 @@ If you see “No Output Directory named dist”, open **Project Settings → Bui
 | GTFS cache persists in `.cache/` for days | Each serverless instance starts with an **empty** `/tmp` — no saved timetable |
 | First load downloads GTFS once | Without a build-time bundle, every cold start tries to download the full TfWM zip (~30–60s) and often **times out** (HTML error page → “Unexpected token `<`”) |
 
-**Fix:** `npm run build` runs `scripts/prebuild-gtfs.mjs`, which downloads GTFS **during deploy** (when Vercel has your API keys) and ships `data/gtfs-subset.json` with the app. Timetables then load in milliseconds.
+**Fix:** Timetable data is shipped in `data/gtfs-subset.json` in the repo (no download during Vercel build). To refresh it locally: `npm run bundle-gtfs` then commit and push.
 
 **Check production:** open `https://your-app.vercel.app/api/health` — you want `"ok": true` and `"bundledSubset": true`.
 

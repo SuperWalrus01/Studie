@@ -4,7 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "node scripts/prebuild-gtfs.mjs && next build",
+    "prebuild": "node scripts/verify-gtfs-bundle.mjs",
+    "build": "next build",
+    "bundle-gtfs": "npx tsx --env-file=.env.local scripts/prebuild-gtfs-download.mjs",
     "start": "next start",
     "lint": "eslint",
     "verify-stops": "node --env-file=.env.local scripts/verify-stops.mjs",
