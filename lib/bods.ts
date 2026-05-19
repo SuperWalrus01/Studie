@@ -28,6 +28,19 @@ export interface LiveVehicle {
   lon: number;
   bearing?: number;
   recordedAt?: string;
+  destination?: string;
+  origin?: string;
+  direction?: string;
+}
+
+function decodeXmlText(value: string): string {
+  return value
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .trim();
 }
 
 export function getBodsApiKey(): string | null {
@@ -58,6 +71,10 @@ function parseVehicleActivities(xml: string): LiveVehicle[] {
       block.match(/<RecordedAtTime>([^<]+)/)?.[1]?.trim() ??
       block.match(/<ValidUntilTime>([^<]+)/)?.[1]?.trim();
 
+    const destination = block.match(/<DestinationName>([^<]+)/)?.[1];
+    const origin = block.match(/<OriginName>([^<]+)/)?.[1];
+    const direction = block.match(/<DirectionRef>([^<]+)/)?.[1];
+
     vehicles.push({
       id: vehicleRef,
       route: line,
@@ -65,6 +82,9 @@ function parseVehicleActivities(xml: string): LiveVehicle[] {
       lon: Number(lon),
       bearing: bearingRaw ? Number(bearingRaw) : undefined,
       recordedAt,
+      destination: destination ? decodeXmlText(destination) : undefined,
+      origin: origin ? decodeXmlText(origin) : undefined,
+      direction: direction?.trim(),
     });
   }
 

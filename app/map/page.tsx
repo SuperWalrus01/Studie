@@ -2,10 +2,29 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type MutableRefObject,
+} from "react";
+import { MapSelectionPanel } from "@/components/MapSelectionPanel";
 import type { BusOption } from "@/lib/busOption";
 import type { LiveVehicle } from "@/lib/bods";
-import { MAP_CENTER, MAP_ZOOM, type StopCoord } from "@/lib/stopCoords";
+import {
+  MAP_CENTER,
+  MAP_ZOOM,
+  STOP_COORDS,
+  type StopCoord,
+} from "@/lib/stopCoords";
+import type { StopDeparture } from "@/lib/stopTimes";
+import {
+  favoriteStopMarkerHtml,
+  genericStopMarkerHtml,
+  getStopMarkerStyle,
+} from "@/lib/stopMarkers";
 import "leaflet/dist/leaflet.css";
 
 const REFRESH_MS = 5_000;
@@ -27,6 +46,20 @@ function routeColor(route: string): string {
   return ROUTE_COLORS[route] ?? "#525252";
 }
 
+function bindMarkerSelect(
+  L: typeof import("leaflet"),
+  marker: import("leaflet").Marker,
+  suppressMapClick: MutableRefObject<boolean>,
+  onSelect: () => void
+) {
+  const handler = (e: import("leaflet").LeafletMouseEvent) => {
+    L.DomEvent.stopPropagation(e);
+    suppressMapClick.current = true;
+    onSelect();
+  };
+  marker.on("click", handler);
+}
+
 function MapContent() {
   const searchParams = useSearchParams();
   const routesParam = searchParams.get("routes");
@@ -38,7 +71,6 @@ function MapContent() {
   const watchIdRef = useRef<number | null>(null);
   const centeredOnUserRef = useRef(false);
   const [vehicles, setVehicles] = useState<LiveVehicle[]>([]);
-  const [stops, setStops] = useState<StopCoord[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
   const [mapReady, setMapReady] = useState(false);
@@ -50,10 +82,43 @@ function MapContent() {
   const [locStatus, setLocStatus] = useState<
     "idle" | "requesting" | "active" | "denied" | "unsupported"
   >("idle");
+  const [locPromptDismissed, setLocPromptDismissed] = useState(false);
   const [lynchgate11, setLynchgate11] = useState<BusOption | null>(null);
   const [connectorBuses, setConnectorBuses] = useState<BusOption[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
+  const [selectedBus, setSelectedBus] = useState<LiveVehicle | null>(null);
+  const [selectedStop, setSelectedStop] = useState<StopCoord | null>(null);
+  const [stopDepartures, setStopDepartures] = useState<StopDeparture[]>([]);
+  const [stopDeparturesLoading, setStopDeparturesLoading] = useState(false);
+  const selectBusRef = useRef<(v: LiveVehicle) => void>(() => {});
+  const selectStopRef = useRef<(s: StopCoord) => void>(() => {});
+  const clearSelectionRef = useRef(() => {});
+  const suppressMapClickRef = useRef(false);
+
+  const clearSelection = useCallback(() => {
+    setSelectedBus(null);
+    setSelectedStop(null);
+  }, []);
+
+  const selectBus = useCallback((v: LiveVehicle) => {
+    setSelectedStop(null);
+    setSelectedBus(v);
+  }, []);
+
+  const selectStop = useCallback((s: StopCoord) => {
+    setSelectedBus(null);
+    setSelectedStop(s);
+    leafletMap.current?.setView(
+      [s.lat, s.lon],
+      Math.max(leafletMap.current.getZoom(), 15),
+      { animate: true }
+    );
+  }, []);
+
+  selectBusRef.current = selectBus;
+  selectStopRef.current = selectStop;
+  clearSelectionRef.current = clearSelection;
 
   const fetchOpts = (force: boolean): RequestInit =>
     force ? { cache: "no-store" } : {};
@@ -81,7 +146,6 @@ function MapContent() {
         }
         setError(null);
         setVehicles(data.vehicles ?? []);
-        setStops(data.stops ?? []);
         setUpdatedAt(data.updatedAt ?? null);
       } catch {
         setError("Could not reach server");
@@ -168,6 +232,7 @@ function MapContent() {
       (err) => {
         setLocStatus(err.code === err.PERMISSION_DENIED ? "denied" : "denied");
         setUserPos(null);
+        setLocPromptDismissed(true);
       },
       { enableHighAccuracy: true, timeout: 15_000 }
     );
@@ -185,12 +250,30 @@ function MapContent() {
       .query({ name: "geolocation" })
       .then((result) => {
         if (result.state === "granted") requestLocation();
-        else if (result.state === "denied") setLocStatus("denied");
+        else if (result.state === "denied") {
+          setLocStatus("denied");
+          setLocPromptDismissed(true);
+        }
       })
       .catch(() => {});
   }, [requestLocation]);
 
   useEffect(() => () => stopWatching(), [stopWatching]);
+
+  useEffect(() => {
+    if (!selectedStop) {
+      setStopDepartures([]);
+      return;
+    }
+    setStopDeparturesLoading(true);
+    fetch(`/api/stop-times?stopId=${encodeURIComponent(selectedStop.id)}`, {
+      cache: "no-store",
+    })
+      .then((res) => res.json())
+      .then((data) => setStopDepartures(data.departures ?? []))
+      .catch(() => setStopDepartures([]))
+      .finally(() => setStopDeparturesLoading(false));
+  }, [selectedStop]);
 
   useEffect(() => {
     if (!mapRef.current || leafletMap.current) return;
@@ -211,11 +294,28 @@ function MapContent() {
         maxZoom: 19,
       }).addTo(map);
 
+      map.createPane("busPane");
+      map.getPane("busPane")!.style.zIndex = "640";
+      map.createPane("stopPane");
+      map.getPane("stopPane")!.style.zIndex = "680";
+
       stopLayerRef.current = L.layerGroup().addTo(map);
       busLayerRef.current = L.layerGroup().addTo(map);
       userLayerRef.current = L.layerGroup().addTo(map);
+
+      map.on("click", () => {
+        requestAnimationFrame(() => {
+          if (suppressMapClickRef.current) {
+            suppressMapClickRef.current = false;
+            return;
+          }
+          clearSelectionRef.current();
+        });
+      });
+
       leafletMap.current = map;
       setMapReady(true);
+      setTimeout(() => map.invalidateSize(), 100);
     })();
 
     return () => {
@@ -236,20 +336,29 @@ function MapContent() {
       const L = (await import("leaflet")).default;
       stopLayerRef.current!.clearLayers();
 
-      const stopIcon = L.divIcon({
-        className: "",
-        html: `<div style="width:10px;height:10px;border-radius:50%;background:#171717;border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,.4)"></div>`,
-        iconSize: [10, 10],
-        iconAnchor: [5, 5],
-      });
+      for (const stop of STOP_COORDS) {
+        const markerStyle = getStopMarkerStyle(stop.id);
+        const isFavorite = markerStyle != null;
+        const stopIcon = L.divIcon({
+          className: "bus-stop-hit",
+          html: isFavorite
+            ? favoriteStopMarkerHtml(markerStyle)
+            : genericStopMarkerHtml(),
+          iconSize: isFavorite ? [48, 52] : [36, 36],
+          iconAnchor: isFavorite ? [24, 26] : [18, 18],
+        });
 
-      for (const stop of stops) {
-        L.marker([stop.lat, stop.lon], { icon: stopIcon })
-          .bindPopup(stop.label)
-          .addTo(stopLayerRef.current!);
+        const marker = L.marker([stop.lat, stop.lon], {
+          icon: stopIcon,
+          pane: "stopPane",
+          zIndexOffset: isFavorite ? 1100 : 1000,
+        }).addTo(stopLayerRef.current!);
+        bindMarkerSelect(L, marker, suppressMapClickRef, () =>
+          selectStopRef.current(stop)
+        );
       }
     })();
-  }, [mapReady, stops]);
+  }, [mapReady]);
 
   useEffect(() => {
     if (!mapReady || !busLayerRef.current) return;
@@ -266,15 +375,14 @@ function MapContent() {
           iconAnchor: [14, 11],
         });
 
-        L.marker([v.lat, v.lon], { icon })
-          .bindPopup(
-            `<strong>Route ${v.route}</strong><br/>Vehicle ${v.id}${
-              v.recordedAt
-                ? `<br/><small>${new Date(v.recordedAt).toLocaleTimeString()}</small>`
-                : ""
-            }`
-          )
-          .addTo(busLayerRef.current!);
+        const marker = L.marker([v.lat, v.lon], {
+          icon,
+          pane: "busPane",
+          zIndexOffset: 400,
+        }).addTo(busLayerRef.current!);
+        bindMarkerSelect(L, marker, suppressMapClickRef, () =>
+          selectBusRef.current(v)
+        );
       }
     })();
   }, [mapReady, vehicles]);
@@ -359,56 +467,74 @@ function MapContent() {
       <div className="relative z-0 flex-1 min-h-0 w-full isolate">
         <div ref={mapRef} className="absolute inset-0" />
 
-        {locStatus !== "active" && (
-          <div className="absolute top-3 left-3 right-3 z-[1000] pointer-events-auto">
-            <div className="rounded-xl border border-blue-200 bg-white/95 dark:bg-neutral-900/95 backdrop-blur px-4 py-3 shadow-lg dark:border-blue-900">
-              {locStatus === "unsupported" ? (
-                <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                  Location is not supported in this browser.
-                </p>
-              ) : locStatus === "denied" ? (
-                <>
-                  <p className="text-sm font-medium">Location blocked</p>
-                  <p className="text-xs text-neutral-500 mt-1">
-                    Enable location for this site in your browser settings, then
-                    tap below.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={requestLocation}
-                    className="mt-3 w-full rounded-lg bg-blue-600 text-white text-sm font-medium py-2.5 touch-manipulation"
-                  >
-                    Try again
-                  </button>
-                </>
-              ) : (
-                <>
-                  <p className="text-sm font-medium">Show where you are</p>
-                  <p className="text-xs text-neutral-500 mt-1">
-                    We&apos;ll ask to use your live location and show a blue dot
-                    on the map.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={requestLocation}
-                    disabled={locStatus === "requesting"}
-                    className="mt-3 w-full rounded-lg bg-blue-600 text-white text-sm font-medium py-2.5 disabled:opacity-60 touch-manipulation flex items-center justify-center gap-2"
-                  >
-                    {locStatus === "requesting" ? (
-                      "Getting location…"
-                    ) : (
-                      <>
-                        <span aria-hidden>📍</span> Use my location
-                      </>
-                    )}
-                  </button>
-                </>
-              )}
+        {!locPromptDismissed && locStatus === "idle" && (
+          <div className="absolute top-3 left-3 right-3 z-[1000] pointer-events-auto max-w-sm">
+            <div className="rounded-xl border border-blue-200 bg-white dark:bg-neutral-900 px-4 py-3 shadow-lg dark:border-blue-800">
+              <p className="text-sm font-medium">Show where you are?</p>
+              <p className="text-xs text-neutral-500 mt-1">
+                Optional — the map works without it. Tap 📍 anytime.
+              </p>
+              <div className="flex gap-2 mt-3">
+                <button
+                  type="button"
+                  onClick={() => setLocPromptDismissed(true)}
+                  className="flex-1 rounded-lg border border-neutral-300 dark:border-neutral-600 text-sm py-2.5 touch-manipulation"
+                >
+                  Not now
+                </button>
+                <button
+                  type="button"
+                  onClick={requestLocation}
+                  className="flex-1 rounded-lg bg-blue-600 text-white text-sm font-medium py-2.5 touch-manipulation"
+                >
+                  Allow
+                </button>
+              </div>
             </div>
           </div>
         )}
 
-        {locStatus === "active" && userPos && (
+        {locStatus === "requesting" && (
+          <div className="absolute top-3 left-3 right-3 z-[1000] pointer-events-none">
+            <div className="rounded-full bg-white dark:bg-neutral-900 px-3 py-1.5 text-sm shadow">
+              Getting location…
+            </div>
+          </div>
+        )}
+
+        {locStatus === "denied" && !locPromptDismissed && (
+          <div className="absolute top-3 left-3 right-3 z-[1000] pointer-events-auto">
+            <div className="rounded-lg bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 px-3 py-2 text-sm flex items-center justify-between gap-2">
+              <span className="text-amber-900 dark:text-amber-100 text-xs">
+                Location blocked — enable in Settings, or use map without it
+              </span>
+              <button
+                type="button"
+                onClick={() => setLocPromptDismissed(true)}
+                className="shrink-0 text-xs font-medium underline touch-manipulation"
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        )}
+
+        {locStatus === "unsupported" && !locPromptDismissed && (
+          <div className="absolute top-3 left-3 right-3 z-[1000] pointer-events-auto">
+            <div className="rounded-lg bg-neutral-100 dark:bg-neutral-800 px-3 py-2 text-xs flex justify-between gap-2">
+              <span>Location not supported in this browser</span>
+              <button
+                type="button"
+                onClick={() => setLocPromptDismissed(true)}
+                className="underline touch-manipulation"
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        )}
+
+        {locStatus === "active" && userPos && !selectedBus && !selectedStop && (
           <div className="absolute bottom-3 left-3 z-[1000] rounded-full bg-white/95 dark:bg-neutral-900/95 backdrop-blur px-3 py-1.5 text-xs text-blue-700 dark:text-blue-300 shadow border border-blue-200 dark:border-blue-800 pointer-events-none">
             📍 You are here
             {userPos.accuracy != null && userPos.accuracy < 500 && (
@@ -419,6 +545,20 @@ function MapContent() {
             )}
           </div>
         )}
+
+        {!selectedBus && !selectedStop && (
+          <div className="absolute top-3 right-3 z-[999] rounded-full bg-white/95 dark:bg-neutral-900/95 backdrop-blur px-2.5 py-1 text-xs text-neutral-600 dark:text-neutral-400 shadow pointer-events-none">
+            Tap a bus or stop
+          </div>
+        )}
+
+        <MapSelectionPanel
+          bus={selectedBus}
+          stop={selectedStop}
+          departures={stopDepartures}
+          departuresLoading={stopDeparturesLoading}
+          onClose={clearSelection}
+        />
       </div>
 
       <div className="px-4 py-3 border-t border-neutral-200 dark:border-neutral-800 shrink-0 bg-white dark:bg-neutral-950 max-h-[40vh] overflow-y-auto">
@@ -455,6 +595,39 @@ function MapContent() {
               </ul>
             </div>
           )}
+        </div>
+
+        <div className="mt-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500 mb-2">
+            Stops
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {STOP_COORDS.map((stop) => {
+              const style = getStopMarkerStyle(stop.id);
+              return (
+                <button
+                  key={stop.id}
+                  type="button"
+                  onClick={() => selectStop(stop)}
+                  className={`text-xs px-2.5 py-1.5 rounded-full border touch-manipulation flex items-center gap-1 ${
+                    selectedStop?.id === stop.id
+                      ? "text-white border-transparent"
+                      : "border-neutral-300 dark:border-neutral-600"
+                  }`}
+                  style={
+                    selectedStop?.id === stop.id
+                      ? { background: style?.bg ?? "#171717" }
+                      : style
+                        ? { borderColor: style.bg, color: style.bg }
+                        : undefined
+                  }
+                >
+                  {style && <span aria-hidden>{style.emoji}</span>}
+                  {stop.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         <div className="flex flex-wrap gap-2 mt-2">

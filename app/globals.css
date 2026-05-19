@@ -23,3 +23,17 @@ body {
   color: var(--foreground);
   font-family: var(--font-geist-sans), system-ui, sans-serif;
 }
+
+.leaflet-container {
+  background: #e8e8e8;
+  font-family: inherit;
+}
+
+.leaflet-container .bus-stop-hit {
+  background: transparent !important;
+  border: none !important;
+}
+
+.leaflet-container .bus-stop-hit > div {
+  touch-action: manipulation;
+}

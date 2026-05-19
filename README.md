@@ -1,5 +1,7 @@
 # Bus Compare
 
+**Repository:** [github.com/SuperWalrus01/Studie](https://github.com/SuperWalrus01/Studie)
+
 A simple mobile-friendly web app to compare Coventry buses for regular trips:
 
 - **To Warwick** from City Village (St Johns Church) or New Union Street
