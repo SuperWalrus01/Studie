@@ -2,7 +2,7 @@
   "id": "/",
   "name": "Bus Compare",
   "short_name": "Buses",
-  "description": "Coventry buses — Warwick, Lynchgate, live map",
+  "description": "Coventry buses — City Village, Warwick, live map",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

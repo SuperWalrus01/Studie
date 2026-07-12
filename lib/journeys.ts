@@ -1,9 +1,4 @@
-import {
-  CITY_CONNECTOR_ROUTES,
-  LYNCHGATE_STOP_IDS,
-  ST_JOHNS_STOP_IDS,
-  STOPS,
-} from "./stops";
+import { CITY_CONNECTOR_ROUTES, STOPS } from "./stops";
 
 export type TripDestination = {
   stopId: string;
@@ -12,9 +7,9 @@ export type TripDestination = {
   altByRoute?: Record<string, string>;
 };
 
-export type TripId = "toWarwick" | "toLynchgate" | "goingHome";
+export type TripId = "toWarwick" | "goingHome";
 
-export type OriginKey = "cityVillage" | "newUnion" | "warwick" | "lynchgate";
+export type OriginKey = "cityVillage" | "newUnion" | "warwick";
 export type DestinationKey = "cityVillage" | "newUnion";
 
 export interface BoardingStop {
@@ -94,33 +89,6 @@ export const TRIPS: Record<TripId, TripConfig> = {
       },
     },
   },
-  toLynchgate: {
-    id: "toLynchgate",
-    title: "To Lynchgate",
-    origins: {
-      cityVillage: [
-        {
-          stopId: STOPS.stJohnsCS2,
-          routes: ["11"],
-          label: "St Johns Church",
-        },
-        {
-          stopId: STOPS.stJohnsCS1,
-          routes: ["14", "14A"],
-          label: "St Johns Church",
-        },
-        {
-          stopId: STOPS.stJohnsCS3,
-          routes: ["87"],
-          label: "St Johns Church",
-        },
-      ],
-    },
-    destination: {
-      stopId: STOPS.lynchgateBefore,
-      alsoStopIds: LYNCHGATE_STOP_IDS,
-    },
-  },
   goingHome: {
     id: "goingHome",
     title: "Going home",
@@ -150,18 +118,6 @@ export const TRIPS: Record<TripId, TripConfig> = {
           stopId: STOPS.warwickScarmanGH4,
           routes: ["87"],
           label: "Warwick Uni",
-        },
-      ],
-      lynchgate: [
-        {
-          stopId: STOPS.lynchgateBefore,
-          routes: ["11", "87"],
-          label: "Lynchgate Rd",
-        },
-        {
-          stopId: STOPS.lynchgateAfter,
-          routes: ["11", "87"],
-          label: "Lynchgate Rd",
         },
       ],
     },
@@ -209,7 +165,7 @@ export function getTrip(id: string): TripConfig | undefined {
   return TRIPS[id as TripId];
 }
 
-export const TRIP_LIST: TripId[] = ["toWarwick", "toLynchgate", "goingHome"];
+export const TRIP_LIST: TripId[] = ["toWarwick", "goingHome"];
 
 /** Opposite side of New Union St after crossing from route 11 / 12X (BY2/BY4) */
 export const NEW_UNION_TO_ST_JOHNS_BOARDS: BoardingStop[] = [
@@ -229,3 +185,6 @@ export const NEW_UNION_TO_ST_JOHNS_BOARDS: BoardingStop[] = [
 
 /** Routes that end at New Union; need connector to reach St Johns / City Village */
 export const NEW_UNION_TRANSFER_ROUTES = ["11", "12X"] as const;
+
+/** Walking home from New Union St instead of waiting for a 17/21 */
+export const NEW_UNION_TO_CITY_VILLAGE_WALK_MIN = 10;

@@ -15,8 +15,6 @@ const STOP_ID_LABELS: Record<string, string> = {
   [STOPS.poolMeadow11]: "Pool Meadow",
   [STOPS.poolMeadow12X]: "Pool Meadow",
   [STOPS.poolMeadow87]: "Pool Meadow",
-  [STOPS.lynchgateBefore]: "Lynchgate Rd",
-  [STOPS.lynchgateAfter]: "Lynchgate Rd",
   [STOPS.warwickUW1]: "Warwick Uni",
   [STOPS.warwickUW2]: "Warwick Uni",
   [STOPS.warwickUW3]: "Warwick Uni",

@@ -10,10 +10,17 @@ export interface BusOption {
   durationMinutes: number;
   fastest: boolean;
   live: boolean;
-  /** Main leg ends at New Union; use connector section for St Johns */
-  viaNewUnion?: boolean;
   /** Combined 11/12X + 17/21 when going home to City Village */
   chained?: boolean;
+  /** First leg arrival at New Union St (chained or walk options) */
+  changeArriveAt?: string;
+  /** Second-leg 17/21 route for chained options */
+  connectorRoute?: string;
+  connectorDepartAt?: string;
+  /** Minutes between first-leg arrival and connector departure */
+  transferWaitMinutes?: number;
+  /** Arrival time includes walking home from New Union St */
+  walkFromNewUnion?: boolean;
 }
 
 export function pickFastest(options: BusOption[]): BusOption | null {

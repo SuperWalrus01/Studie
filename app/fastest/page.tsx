@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import type { FastestPick } from "@/lib/fastest";
 import type { BusOption } from "@/lib/busOption";
+import { TransferDetail } from "@/components/TransferDetail";
 import { fetchApi } from "@/lib/fetchApi";
 
 export default function FastestPage() {
@@ -98,13 +99,21 @@ function FastestCard({ pick }: { pick: FastestPick }) {
           Leaves in <strong>{o.leaveInMinutes} min</strong>
           <span className="text-neutral-500"> ({o.departAt})</span>
         </p>
-        <p className="text-2xl font-semibold mt-2">Arrive {o.arriveAt}</p>
+        <p className="text-2xl font-semibold mt-2">
+          Arrive {o.arriveAt}
+          {o.arriveLabel && (
+            <span className="text-sm font-normal text-neutral-500 ml-2">
+              · {o.arriveLabel}
+            </span>
+          )}
+        </p>
         <p className="text-sm text-neutral-500 mt-1">
-          {o.durationMinutes} min on the bus
+          {o.durationMinutes} min door to door
           {o.walkMinutes != null && o.walkMinutes > 0 && (
             <span> · {o.walkMinutes} min walk before</span>
           )}
         </p>
+        <TransferDetail option={o} />
       </div>
       <Link
         href={`/trip/${pick.tripId}`}

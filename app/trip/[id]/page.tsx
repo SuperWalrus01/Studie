@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { pickFastest, type BusOption } from "@/lib/busOption";
+import { TransferDetail } from "@/components/TransferDetail";
 import { fetchApi } from "@/lib/fetchApi";
 import {
   getTrip,
@@ -16,7 +17,6 @@ const ORIGIN_LABELS: Record<OriginKey, string> = {
   cityVillage: "City Village",
   newUnion: "New Union St",
   warwick: "Warwick Uni",
-  lynchgate: "Lynchgate",
 };
 
 const DEST_LABELS: Record<DestinationKey, string> = {
@@ -29,10 +29,6 @@ function defaultOrigin(tripId: TripId): OriginKey {
   return "cityVillage";
 }
 
-function defaultDestination(tripId: TripId): DestinationKey {
-  return tripId === "goingHome" ? "cityVillage" : "cityVillage";
-}
-
 export default function TripPage() {
   const params = useParams();
   const searchParams = useSearchParams();
@@ -43,9 +39,7 @@ export default function TripPage() {
   const [origin, setOrigin] = useState<OriginKey>(() =>
     defaultOrigin(tripId as TripId)
   );
-  const [destination, setDestination] = useState<DestinationKey>(() =>
-    defaultDestination(tripId as TripId)
-  );
+  const [destination, setDestination] = useState<DestinationKey>("cityVillage");
   const [options, setOptions] = useState<BusOption[]>([]);
   const [connectorOptions, setConnectorOptions] = useState<BusOption[]>([]);
   const [loading, setLoading] = useState(true);
@@ -199,9 +193,10 @@ export default function TripPage() {
           )}
           {trip.id === "goingHome" && destination === "cityVillage" && (
             <p className="text-xs text-neutral-400 mb-3">
-              Route 11 ends at New Union St — not Pool Meadow or St Johns.
-              Options show 11/12X plus a cross-street change (17/21), or 14/87
-              direct to St Johns.
+              14/87 go direct to St Johns. 11/12X end at New Union St — options
+              below already include the cross-street change to a 17/21 (or the
+              10 min walk when that&apos;s quicker), so just pick the earliest
+              arrival.
             </p>
           )}
           <OptionList options={displayOptions} />
@@ -211,14 +206,11 @@ export default function TripPage() {
       {displayConnector.length > 0 && (
         <>
           <p className="text-xs text-neutral-500 uppercase tracking-wide mt-6 mb-2">
-            {trip.id === "toLynchgate"
-              ? "17 / 21 · New Union St (opposite side)"
-              : "Cross street · then to St Johns"}
+            Cross street · then to St Johns
           </p>
           <p className="text-xs text-neutral-400 mb-2">
-            {trip.id === "toLynchgate"
-              ? "For Lynchgate use route 11 from St Johns Church above. These city-centre buses (17/21) run from the opposite side of New Union St."
-              : "After the 11 or 12X, cross New Union St and board 17 / 21 on the opposite side (BY1 / BY5)."}
+            After the 11 or 12X, cross New Union St and board 17 / 21 on the
+            opposite side (BY1 / BY5).
           </p>
           <OptionList options={displayConnector} />
         </>
@@ -289,11 +281,7 @@ function OptionList({ options }: { options: BusOption[] }) {
               {opt.durationMinutes} min trip
             </span>
           </p>
-          {opt.viaNewUnion && !opt.chained && (
-            <p className="text-sm text-amber-800 dark:text-amber-200 mt-2">
-              Alight here — cross the street for 17/21 to St Johns below.
-            </p>
-          )}
+          <TransferDetail option={opt} />
         </li>
       ))}
     </ul>

@@ -5,10 +5,17 @@
 A simple mobile-friendly web app to compare Coventry buses for regular trips:
 
 - **To Warwick** from City Village (St Johns Church) or New Union Street
-- **To Lynchgate** from City Village
-- **Going home** to City Village or New Union Street from Warwick or Lynchgate
+- **Going home** from Warwick to City Village or New Union Street
 
 Shows upcoming departures sorted by **fastest arrival**, using TfWM schedules and live delays.
+
+Going home to City Village compares all ways door to door:
+
+- **14 / 87** direct to St Johns Church
+- **11 / 12X** to New Union St, then cross the street for a **17 / 21** to St Johns
+- **11 / 12X** to New Union St, then the ~10 min walk when that beats waiting
+
+Each option shows the full chain (change time, connecting bus, wait) so the top card is genuinely the fastest way home.
 
 ## Setup
 

@@ -8,11 +8,11 @@ import {
 import { fetchTripDelays } from "./gtfsRt";
 import type { BoardingStop, TripConfig, TripDestination } from "./journeys";
 import {
+  NEW_UNION_TO_CITY_VILLAGE_WALK_MIN,
   NEW_UNION_TO_ST_JOHNS_BOARDS,
   NEW_UNION_TRANSFER_ROUTES,
 } from "./journeys";
 import { ST_JOHNS_STOP_IDS } from "./stops";
-import { STOPS } from "./stops";
 import { type BusOption } from "./busOption";
 
 export type { BusOption } from "./busOption";
@@ -27,6 +27,8 @@ export interface TripOptionsResult {
 }
 
 const CROSS_STREET_MIN = 3;
+/** Beyond this, waiting for a 17/21 never beats walking home from New Union */
+const MAX_TRANSFER_WAIT_MIN = 30;
 
 function secToTime(sec: number): string {
   const normalized = ((sec % (24 * 3600)) + 24 * 3600) % (24 * 3600);
@@ -126,6 +128,14 @@ function minutesBetween(earlier: string, later: string): number {
   return diff;
 }
 
+function addMinutesToTime(time: string, minutes: number): string {
+  const [h, m] = time.split(":").map(Number);
+  const total = (((h * 60 + m + minutes) % (24 * 60)) + 24 * 60) % (24 * 60);
+  const hh = Math.floor(total / 60);
+  const mm = total % 60;
+  return `${hh.toString().padStart(2, "0")}:${mm.toString().padStart(2, "0")}`;
+}
+
 function isTransferRoute(route: string): boolean {
   return NEW_UNION_TRANSFER_ROUTES.some(
     (r) => r.toUpperCase() === route.toUpperCase()
@@ -139,8 +149,10 @@ function chainToStJohns(
   let best: Omit<BusOption, "fastest"> | null = null;
 
   for (const conn of connectors) {
+    /** minutesBetween wraps midnight, so a connector departing before the
+     *  main leg arrives shows up as a ~24h wait — the max cap rejects it */
     const wait = minutesBetween(main.arriveAt, conn.departAt);
-    if (wait < CROSS_STREET_MIN) continue;
+    if (wait < CROSS_STREET_MIN || wait > MAX_TRANSFER_WAIT_MIN) continue;
 
     const chained: Omit<BusOption, "fastest"> = {
       route: `${main.route} → ${conn.route}`,
@@ -152,18 +164,38 @@ function chainToStJohns(
       durationMinutes: main.durationMinutes + wait + conn.durationMinutes,
       live: main.live || conn.live,
       chained: true,
+      changeArriveAt: main.arriveAt,
+      connectorRoute: conn.route,
+      connectorDepartAt: conn.departAt,
+      transferWaitMinutes: wait,
     };
 
-    if (
+    const better =
       !best ||
       parseTimeToComparable(chained.arriveAt) <
-        parseTimeToComparable(best.arriveAt)
-    ) {
-      best = chained;
-    }
+        parseTimeToComparable(best.arriveAt) ||
+      (parseTimeToComparable(chained.arriveAt) ===
+        parseTimeToComparable(best.arriveAt) &&
+        wait < (best.transferWaitMinutes ?? Infinity));
+    if (better) best = chained;
   }
 
   return best;
+}
+
+/** Take the 11/12X to New Union, then walk home instead of changing buses */
+function walkHomeOption(
+  leg: Omit<BusOption, "fastest">
+): Omit<BusOption, "fastest"> {
+  return {
+    ...leg,
+    route: `${leg.route} → walk`,
+    arriveAt: addMinutesToTime(leg.arriveAt, NEW_UNION_TO_CITY_VILLAGE_WALK_MIN),
+    arriveLabel: "City Village",
+    durationMinutes: leg.durationMinutes + NEW_UNION_TO_CITY_VILLAGE_WALK_MIN,
+    changeArriveAt: leg.arriveAt,
+    walkFromNewUnion: true,
+  };
 }
 
 function buildGoingHomeCityVillageOptions(
@@ -171,23 +203,23 @@ function buildGoingHomeCityVillageOptions(
   connectors: Omit<BusOption, "fastest">[]
 ): Omit<BusOption, "fastest">[] {
   const direct = raw.filter((o) => !isTransferRoute(o.route));
-  const transferLegs = raw.filter((o) => isTransferRoute(o.route));
-  const chained: Omit<BusOption, "fastest">[] = [];
+  const viaNewUnion: Omit<BusOption, "fastest">[] = [];
 
-  for (const leg of transferLegs) {
+  for (const leg of raw.filter((o) => isTransferRoute(o.route))) {
     const combo = chainToStJohns(leg, connectors);
-    if (combo) {
-      chained.push(combo);
+    const walk = walkHomeOption(leg);
+    if (
+      combo &&
+      parseTimeToComparable(combo.arriveAt) <=
+        parseTimeToComparable(walk.arriveAt)
+    ) {
+      viaNewUnion.push(combo);
     } else {
-      chained.push({
-        ...leg,
-        arriveLabel: "New Union St",
-        viaNewUnion: true,
-      });
+      viaNewUnion.push(walk);
     }
   }
 
-  return [...direct, ...chained];
+  return [...direct, ...viaNewUnion];
 }
 
 function rankOptions(raw: Omit<BusOption, "fastest">[]): BusOption[] {
@@ -245,31 +277,18 @@ export async function getOptionsForTrip(
       }
     }
 
-    const connectors = await getNewUnionToStJohnsOptions();
-    const connectorRaw = connectors.map(({ fastest: _, ...rest }) => rest);
+    /** Unranked: chaining needs every connector in the horizon, not the top 8 */
+    const connectorRaw = await collectNewUnionToStJohnsRaw();
 
-    let merged = all;
-    if (destinationKey === "cityVillage") {
-      merged = buildGoingHomeCityVillageOptions(all, connectorRaw);
-    } else {
-      merged = all.map((o) =>
-        isTransferRoute(o.route)
-          ? { ...o, arriveLabel: "New Union St", viaNewUnion: true }
-          : o
-      );
-    }
-
-    const options = rankOptions(merged);
-    const result: TripOptionsResult = { options };
-
-    if (
-      destinationKey === "newUnion" ||
+    const merged =
       destinationKey === "cityVillage"
-    ) {
-      result.connectorOptions = connectors;
-    }
+        ? buildGoingHomeCityVillageOptions(all, connectorRaw)
+        : all;
 
-    return result;
+    return {
+      options: rankOptions(merged),
+      connectorOptions: rankOptions(connectorRaw),
+    };
   }
 
   const boards = trip.origins?.[originKey as keyof typeof trip.origins];
@@ -284,25 +303,20 @@ export async function getOptionsForTrip(
     nowSec
   );
 
-  if (trip.id === "toLynchgate") {
-    const options = rankOptions(raw);
-    const connectorOptions = await getNewUnionToStJohnsOptions();
-    return { options, connectorOptions };
-  }
-
   return { options: rankOptions(raw) };
 }
 
 /** 17 / 21 etc. from New Union BY1 or BY5 → St Johns Church */
-export async function getNewUnionToStJohnsOptions(): Promise<BusOption[]> {
+async function collectNewUnionToStJohnsRaw(): Promise<
+  Omit<BusOption, "fastest">[]
+> {
   const nowSec = getLondonNowSeconds();
   const dests = ST_JOHNS_STOP_IDS as readonly string[];
-  const raw = await collectOptions(
-    NEW_UNION_TO_ST_JOHNS_BOARDS,
-    () => [...dests],
-    nowSec
-  );
-  return rankOptions(raw);
+  return collectOptions(NEW_UNION_TO_ST_JOHNS_BOARDS, () => [...dests], nowSec);
+}
+
+export async function getNewUnionToStJohnsOptions(): Promise<BusOption[]> {
+  return rankOptions(await collectNewUnionToStJohnsRaw());
 }
 
 export { pickFastest } from "./busOption";

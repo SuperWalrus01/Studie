@@ -33,11 +33,6 @@ export const ST_JOHNS_STOP_IDS = [
   STOPS.stJohnsCS4,
 ] as const;
 
-/** Both Lynchgate Rd stops on Kirby Corner Rd (before / after the junction) */
-export const LYNCHGATE_STOP_IDS = [
-  STOPS.lynchgateBefore,
-  STOPS.lynchgateAfter,
-] as const;
 export type RouteName = (typeof ROUTE_NAMES)[number];
 
 export const ALL_STOP_IDS = ALL_STOP_IDS_LIST;
@@ -49,7 +44,6 @@ export const ALL_STOP_IDS = ALL_STOP_IDS_LIST;
 export const STOP_TIMETABLE_GROUPS: readonly (readonly string[])[] = [
   NEW_UNION_STOP_IDS,
   ST_JOHNS_STOP_IDS,
-  LYNCHGATE_STOP_IDS,
 ];
 
 export function getStopIdsForTimetable(stopId: string): string[] {

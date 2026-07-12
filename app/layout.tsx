@@ -15,7 +15,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Bus Compare",
-  description: "Compare Coventry buses to Warwick and Lynchgate",
+  description:
+    "Compare Coventry buses between City Village and Warwick University",
   manifest: "/manifest.json",
   applicationName: "Bus Compare",
   appleWebApp: {

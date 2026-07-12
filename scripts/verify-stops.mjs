@@ -12,28 +12,32 @@ const root = path.join(__dirname, "..");
 const STOPS = {
   stJohnsCS1: "43000003201",
   stJohnsCS2: "43000003202",
+  stJohnsCS3: "43000003203",
+  stJohnsCS4: "43000003206",
+  newUnionBY1: "43000002101",
   newUnionBY2: "43000002102",
+  newUnionBY4: "43000002103",
+  newUnionBY5: "43000002104",
   poolMeadow12X: "43000005020",
-  lynchgateBefore: "43000063602",
-  lynchgateAfter: "43000063601",
   warwickUW1: "43000065301",
-  warwickUW2: "43000065302",
   warwickUW3: "43000065303",
 };
 
+const ST_JOHNS = [STOPS.stJohnsCS1, STOPS.stJohnsCS2, STOPS.stJohnsCS3, STOPS.stJohnsCS4];
+const CONNECTORS = ["17", "17A", "21", "21A", "21S"];
+
+/** [trip, label, origin, dests[], routes[]] */
 const PAIRS = [
-  ["toWarwick", "CS2→UW1 (11)", STOPS.stJohnsCS2, STOPS.warwickUW1, ["11"]],
-  ["toWarwick", "CS1→UW1 (14)", STOPS.stJohnsCS1, STOPS.warwickUW1, ["14", "14A"]],
-  ["toWarwick", "BY4→UW3 (12X)", STOPS.newUnionBY4, STOPS.warwickUW3, ["12X"]],
-  ["toWarwick", "Pool→UW3 (12X)", STOPS.poolMeadow12X, STOPS.warwickUW3, ["12X"]],
-  ["toLynchgate", "CS2→Lynchgate (11)", STOPS.stJohnsCS2, STOPS.lynchgateBefore, ["11"]],
-  ["toLynchgate", "CS1→Lynchgate (14)", STOPS.stJohnsCS1, STOPS.lynchgateBefore, ["14", "14A"]],
-  ["goingHome", "UW1→CS2 (11)", STOPS.warwickUW1, STOPS.stJohnsCS2, ["11"]],
-  ["goingHome", "UW1→CS1 (14)", STOPS.warwickUW1, STOPS.stJohnsCS1, ["14", "14A"]],
-  ["goingHome", "UW1→BY2 (11)", STOPS.warwickUW1, STOPS.newUnionBY2, ["11"]],
-  ["goingHome", "UW3→BY4 (12X)", STOPS.warwickUW3, STOPS.newUnionBY4, ["12X"]],
-  ["goingHome", "Lynchgate→CS2 (11)", STOPS.lynchgateAfter, STOPS.stJohnsCS2, ["11"]],
-  ["goingHome", "Lynchgate→BY2 (11)", STOPS.lynchgateAfter, STOPS.newUnionBY2, ["11"]],
+  ["toWarwick", "CS2→UW1 (11)", STOPS.stJohnsCS2, [STOPS.warwickUW1], ["11"]],
+  ["toWarwick", "CS1→UW1 (14)", STOPS.stJohnsCS1, [STOPS.warwickUW1], ["14", "14A"]],
+  ["toWarwick", "BY4→UW3 (12X)", STOPS.newUnionBY4, [STOPS.warwickUW3], ["12X"]],
+  ["toWarwick", "Pool→UW3 (12X)", STOPS.poolMeadow12X, [STOPS.warwickUW3], ["12X"]],
+  ["goingHome", "UW1→CS2 (11)", STOPS.warwickUW1, [STOPS.stJohnsCS2], ["11"]],
+  ["goingHome", "UW1→CS1 (14)", STOPS.warwickUW1, [STOPS.stJohnsCS1], ["14", "14A"]],
+  ["goingHome", "UW1→BY2 (11)", STOPS.warwickUW1, [STOPS.newUnionBY2], ["11"]],
+  ["goingHome", "UW3→BY4 (12X)", STOPS.warwickUW3, [STOPS.newUnionBY4], ["12X"]],
+  ["connector", "BY1→St Johns (17/21)", STOPS.newUnionBY1, ST_JOHNS, CONNECTORS],
+  ["connector", "BY5→St Johns (17/21)", STOPS.newUnionBY5, ST_JOHNS, CONNECTORS],
 ];
 
 async function main() {
@@ -54,11 +58,11 @@ async function main() {
   let ok = 0;
   let fail = 0;
 
-  for (const [trip, label, origin, dest, routes] of PAIRS) {
+  for (const [trip, label, origin, dests, routes] of PAIRS) {
     const count = subset.edges.filter(
       (e) =>
         e.originStopId === origin &&
-        e.destStopId === dest &&
+        dests.includes(e.destStopId) &&
         routes.some((r) => r.toUpperCase() === e.routeShortName.toUpperCase())
     ).length;
 

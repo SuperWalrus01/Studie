@@ -7,7 +7,7 @@ export default function HomePage() {
       <header className="mb-10">
         <h1 className="text-2xl font-semibold tracking-tight">Bus Compare</h1>
         <p className="text-neutral-500 mt-1 text-sm">
-          Coventry · Warwick · Lynchgate
+          City Village ↔ Warwick · Coventry
         </p>
       </header>
 

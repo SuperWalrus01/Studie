@@ -1,9 +1,4 @@
-import {
-  LYNCHGATE_STOP_IDS,
-  NEW_UNION_STOP_IDS,
-  ST_JOHNS_STOP_IDS,
-  STOPS,
-} from "./stops";
+import { NEW_UNION_STOP_IDS, ST_JOHNS_STOP_IDS, STOPS } from "./stops";
 import type { StopCoord } from "./stopCoords";
 
 export interface StopMarkerStyle {
@@ -24,41 +19,27 @@ const ST_JOHNS_STYLE: StopMarkerStyle = {
   label: "St Johns",
 };
 
-const LYNCHGATE_STYLE: StopMarkerStyle = {
-  emoji: "🏠",
-  bg: "#ea580c",
-  label: "Lynchgate",
-};
-
 const FAVORITE_STOP_MARKERS: Record<string, StopMarkerStyle> = {
   [STOPS.newUnionBY2]: NEW_UNION_STYLE,
   [STOPS.warwickUW1]: { emoji: "🎓", bg: "#7c3aed", label: "Warwick" },
 };
 
 const ST_JOHNS_BAY_LABELS = new Set(["CS1", "CS2", "CS3"]);
-const LYNCHGATE_BAY_LABELS = new Set(["Before", "After"]);
 
 export function getStopMarkerStyle(
   stopId: string,
   label?: string
 ): StopMarkerStyle | null {
   if (label === "St Johns Church") return ST_JOHNS_STYLE;
-  if (label === "Lynchgate Rd") return LYNCHGATE_STYLE;
   if ((NEW_UNION_STOP_IDS as readonly string[]).includes(stopId))
     return NEW_UNION_STYLE;
   if ((ST_JOHNS_STOP_IDS as readonly string[]).includes(stopId) && label)
-    return null;
-  if ((LYNCHGATE_STOP_IDS as readonly string[]).includes(stopId) && label)
     return null;
   return FAVORITE_STOP_MARKERS[stopId] ?? null;
 }
 
 export function isStJohnsBay(stop: Pick<StopCoord, "label">): boolean {
   return ST_JOHNS_BAY_LABELS.has(stop.label);
-}
-
-export function isLynchgateBay(stop: Pick<StopCoord, "label">): boolean {
-  return LYNCHGATE_BAY_LABELS.has(stop.label);
 }
 
 export function favoriteStopMarkerHtml(style: StopMarkerStyle): string {
@@ -81,10 +62,6 @@ export function stJohnsBayMarkerHtml(bay: string): string {
   return bayMarkerHtml(bay, "#2563eb");
 }
 
-export function lynchgateBayMarkerHtml(bay: string): string {
-  return bayMarkerHtml(bay, "#ea580c");
-}
-
 export function genericStopMarkerHtml(): string {
   return `<div style="width:36px;height:36px;display:flex;align-items:center;justify-content:center">
     <div style="width:12px;height:12px;border-radius:50%;background:#525252;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,.45)"></div>
@@ -93,7 +70,6 @@ export function genericStopMarkerHtml(): string {
 
 export function stopMarkerHtml(stop: StopCoord): string {
   if (isStJohnsBay(stop)) return stJohnsBayMarkerHtml(stop.label);
-  if (isLynchgateBay(stop)) return lynchgateBayMarkerHtml(stop.label);
   const style = getStopMarkerStyle(stop.id, stop.label);
   if (style) return favoriteStopMarkerHtml(style);
   return genericStopMarkerHtml();
@@ -103,7 +79,7 @@ export function stopMarkerDimensions(stop: StopCoord): {
   iconSize: [number, number];
   iconAnchor: [number, number];
 } {
-  if (isStJohnsBay(stop) || isLynchgateBay(stop))
+  if (isStJohnsBay(stop))
     return { iconSize: [40, 44], iconAnchor: [20, 22] };
   const style = getStopMarkerStyle(stop.id, stop.label);
   if (style) return { iconSize: [48, 52], iconAnchor: [24, 26] };
