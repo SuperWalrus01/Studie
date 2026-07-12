@@ -20,6 +20,7 @@ import {
   type StopCoord,
 } from "@/lib/stopCoords";
 import { fetchApi } from "@/lib/fetchApi";
+import { ROUTE_COLORS, routeColor } from "@/lib/routeColors";
 import type { StopDeparture } from "@/lib/stopTimes";
 import {
   getStopMarkerStyle,
@@ -30,21 +31,29 @@ import "leaflet/dist/leaflet.css";
 
 const REFRESH_MS = 5_000;
 
-const ROUTE_COLORS: Record<string, string> = {
-  "11": "#2563eb",
-  "12X": "#7c3aed",
-  "14": "#059669",
-  "14A": "#0d9488",
-  "87": "#d97706",
-  "17": "#dc2626",
-  "17A": "#ea580c",
-  "21": "#db2777",
-  "21A": "#c026d3",
-  "21S": "#9333ea",
-};
+function tileUrl(dark: boolean): string {
+  return `https://{s}.basemaps.cartocdn.com/${
+    dark ? "dark_all" : "light_all"
+  }/{z}/{x}/{y}{r}.png`;
+}
 
-function routeColor(route: string): string {
-  return ROUTE_COLORS[route] ?? "#525252";
+function busMarkerHtml(v: LiveVehicle, selected: boolean): string {
+  const color = routeColor(v.route);
+  const arrow =
+    v.bearing != null && !Number.isNaN(v.bearing)
+      ? `<div style="position:absolute;left:50%;top:50%;width:46px;height:46px;transform:translate(-50%,-50%) rotate(${Math.round(
+          v.bearing
+        )}deg);pointer-events:none">
+          <div style="position:absolute;left:50%;top:0;transform:translateX(-50%);width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-bottom:7px solid ${color};filter:drop-shadow(0 1px 1px rgba(0,0,0,.4))"></div>
+        </div>`
+      : "";
+  const glow = selected
+    ? `0 0 0 3px ${color}66, 0 2px 8px rgba(0,0,0,.45)`
+    : "0 2px 6px rgba(0,0,0,.35)";
+  return `<div style="position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center">
+    ${arrow}
+    <div style="display:flex;align-items:center;justify-content:center;min-width:28px;height:22px;padding:0 6px;border-radius:6px;background:${color};color:white;font:bold 11px/1 system-ui,sans-serif;border:2px solid white;box-shadow:${glow}">${v.route}</div>
+  </div>`;
 }
 
 function bindMarkerSelect(
@@ -67,14 +76,24 @@ function MapContent() {
   const mapRef = useRef<HTMLDivElement>(null);
   const leafletMap = useRef<L.Map | null>(null);
   const busLayerRef = useRef<L.LayerGroup | null>(null);
+  const busMarkersRef = useRef<Map<string, L.Marker>>(new Map());
+  const vehiclesByIdRef = useRef<Map<string, LiveVehicle>>(new Map());
   const stopLayerRef = useRef<L.LayerGroup | null>(null);
   const userLayerRef = useRef<L.LayerGroup | null>(null);
+  const disposersRef = useRef<(() => void)[]>([]);
   const watchIdRef = useRef<number | null>(null);
   const centeredOnUserRef = useRef(false);
   const [vehicles, setVehicles] = useState<LiveVehicle[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [updatedAt, setUpdatedAt] = useState<string | null>(null);
   const [mapReady, setMapReady] = useState(false);
+  const [activeRoutes, setActiveRoutes] = useState<string[]>(() =>
+    routesParam
+      ? routesParam
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : []
+  );
   const [userPos, setUserPos] = useState<{
     lat: number;
     lon: number;
@@ -119,9 +138,12 @@ function MapContent() {
     );
   }, []);
 
-  selectBusRef.current = selectBus;
-  selectStopRef.current = selectStop;
-  clearSelectionRef.current = clearSelection;
+  /** Latest-ref pattern: keep marker click handlers pointing at fresh callbacks */
+  useEffect(() => {
+    selectBusRef.current = selectBus;
+    selectStopRef.current = selectStop;
+    clearSelectionRef.current = clearSelection;
+  });
 
   const fetchOpts = (force: boolean): RequestInit =>
     force ? { cache: "no-store" } : {};
@@ -132,31 +154,37 @@ function MapContent() {
     return `${path}${sep}_t=${Date.now()}`;
   };
 
+  const routesKey = activeRoutes.join(",");
+
   const loadVehicles = useCallback(
     async (force = false) => {
       const params = new URLSearchParams();
-      if (routesParam) params.set("routes", routesParam);
+      if (routesKey) params.set("routes", routesKey);
       const qs = params.toString() ? `?${params}` : "";
       try {
         const { res, data } = await fetchApi<{
           error?: string;
           vehicles?: LiveVehicle[];
-          updatedAt?: string;
         }>(bustUrl(`/api/vehicles${qs}`, force), fetchOpts(force));
         if (!res.ok) {
           setError(data.error ?? "Could not load buses");
           return;
         }
+        const fresh = data.vehicles ?? [];
         setError(null);
-        setVehicles(data.vehicles ?? []);
-        setUpdatedAt(data.updatedAt ?? null);
+        setVehicles(fresh);
+        vehiclesByIdRef.current = new Map(fresh.map((v) => [v.id, v]));
+        /** Keep the open bus panel tracking the latest position report */
+        setSelectedBus((prev) =>
+          prev ? (fresh.find((v) => v.id === prev.id) ?? prev) : prev
+        );
       } catch (err) {
         setError(
           err instanceof Error ? err.message : "Could not reach server"
         );
       }
     },
-    [routesParam]
+    [routesKey]
   );
 
   const load = useCallback(
@@ -175,6 +203,12 @@ function MapContent() {
       setRefreshing(false);
     }
   }, [load]);
+
+  const toggleRoute = useCallback((route: string) => {
+    setActiveRoutes((prev) =>
+      prev.includes(route) ? prev.filter((r) => r !== route) : [...prev, route]
+    );
+  }, []);
 
   const stopWatching = useCallback(() => {
     if (watchIdRef.current != null) {
@@ -227,6 +261,8 @@ function MapContent() {
   }, [applyPosition, stopWatching, locStatus, userPos]);
 
   useEffect(() => {
+    /* Poll-fetch: state updates happen after await, not synchronously */
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     load();
     const id = setInterval(load, REFRESH_MS);
     return () => clearInterval(id);
@@ -250,6 +286,8 @@ function MapContent() {
 
   useEffect(() => {
     if (!selectedStop) {
+      /* Reset panel state when selection is cleared from any code path */
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setStopDepartures([]);
       setStopDeparturesError(null);
       setStopDeparturesLoading(false);
@@ -286,12 +324,14 @@ function MapContent() {
       });
 
     return () => controller.abort();
-  }, [selectedStop?.id, selectedStop?.label]);
+  }, [selectedStop]);
 
   useEffect(() => {
     if (!mapRef.current || leafletMap.current) return;
 
     let cancelled = false;
+    const disposers = disposersRef.current;
+    const busMarkers = busMarkersRef.current;
 
     (async () => {
       const L = (await import("leaflet")).default;
@@ -302,10 +342,17 @@ function MapContent() {
         MAP_ZOOM
       );
 
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: "© OpenStreetMap",
+      const mq = window.matchMedia("(prefers-color-scheme: dark)");
+      const tiles = L.tileLayer(tileUrl(mq.matches), {
+        attribution:
+          '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/attributions">CARTO</a>',
         maxZoom: 19,
+        subdomains: "abcd",
       }).addTo(map);
+      const onThemeChange = (e: MediaQueryListEvent) =>
+        tiles.setUrl(tileUrl(e.matches));
+      mq.addEventListener("change", onThemeChange);
+      disposers.push(() => mq.removeEventListener("change", onThemeChange));
 
       map.createPane("busPane");
       map.getPane("busPane")!.style.zIndex = "640";
@@ -333,6 +380,9 @@ function MapContent() {
 
     return () => {
       cancelled = true;
+      disposers.forEach((dispose) => dispose());
+      disposers.length = 0;
+      busMarkers.clear();
       leafletMap.current?.remove();
       leafletMap.current = null;
       busLayerRef.current = null;
@@ -353,9 +403,7 @@ function MapContent() {
         const { iconSize, iconAnchor } = stopMarkerDimensions(stop);
         const isPriority =
           getStopMarkerStyle(stop.id, stop.label) != null ||
-          stop.label.startsWith("CS") ||
-          stop.label === "Before" ||
-          stop.label === "After";
+          stop.label.startsWith("CS");
 
         const stopIcon = L.divIcon({
           className: "bus-stop-hit",
@@ -376,32 +424,64 @@ function MapContent() {
     })();
   }, [mapReady]);
 
+  /** Update bus markers in place so positions animate instead of flickering */
   useEffect(() => {
     if (!mapReady || !busLayerRef.current) return;
 
+    let cancelled = false;
+
     (async () => {
       const L = (await import("leaflet")).default;
-      busLayerRef.current!.clearLayers();
+      if (cancelled || !busLayerRef.current) return;
+
+      const layer = busLayerRef.current;
+      const markers = busMarkersRef.current;
+      const seen = new Set<string>();
 
       for (const v of vehicles) {
-        const color = routeColor(v.route);
-        const icon = L.divIcon({
-          className: "",
-          html: `<div style="display:flex;align-items:center;justify-content:center;min-width:28px;height:22px;padding:0 6px;border-radius:4px;background:${color};color:white;font:bold 11px/1 system-ui,sans-serif;border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,.35)">${v.route}</div>`,
-          iconAnchor: [14, 11],
-        });
+        seen.add(v.id);
+        const selected = v.id === selectedBus?.id;
+        const html = busMarkerHtml(v, selected);
+        const existing = markers.get(v.id);
 
-        const marker = L.marker([v.lat, v.lon], {
-          icon,
-          pane: "busPane",
-          zIndexOffset: 400,
-        }).addTo(busLayerRef.current!);
-        bindMarkerSelect(L, marker, suppressMapClickRef, () =>
-          selectBusRef.current(v)
-        );
+        if (existing) {
+          existing.setLatLng([v.lat, v.lon]);
+          existing.setZIndexOffset(selected ? 500 : 400);
+          const el = existing.getElement();
+          if (el) el.innerHTML = html;
+        } else {
+          const icon = L.divIcon({
+            className: "bus-marker",
+            html,
+            iconSize: [40, 40],
+            iconAnchor: [20, 20],
+          });
+          const marker = L.marker([v.lat, v.lon], {
+            icon,
+            pane: "busPane",
+            zIndexOffset: selected ? 500 : 400,
+          }).addTo(layer);
+          const id = v.id;
+          bindMarkerSelect(L, marker, suppressMapClickRef, () => {
+            const current = vehiclesByIdRef.current.get(id);
+            if (current) selectBusRef.current(current);
+          });
+          markers.set(id, marker);
+        }
+      }
+
+      for (const [id, marker] of markers) {
+        if (!seen.has(id)) {
+          layer.removeLayer(marker);
+          markers.delete(id);
+        }
       }
     })();
-  }, [mapReady, vehicles]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [mapReady, vehicles, selectedBus?.id]);
 
   useEffect(() => {
     if (!mapReady || !userLayerRef.current || !userPos) return;
@@ -578,59 +658,75 @@ function MapContent() {
         />
       </div>
 
-      <div className="px-4 py-3 border-t border-neutral-200 dark:border-neutral-800 shrink-0 bg-white dark:bg-neutral-950 max-h-[40vh] overflow-y-auto">
+      <div className="px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] border-t border-neutral-200 dark:border-neutral-800 shrink-0 bg-white dark:bg-neutral-950 max-h-[40vh] overflow-y-auto">
         <p className="text-xs text-neutral-500">
-          {vehicles.length} bus{vehicles.length === 1 ? "" : "es"} · auto-refresh
-          every 5s
-          {lastRefresh && (
-            <span> · refreshed {lastRefresh.toLocaleTimeString()}</span>
-          )}
+          {vehicles.length} live bus{vehicles.length === 1 ? "" : "es"}
+          {activeRoutes.length > 0 && ` on ${activeRoutes.join(", ")}`} ·
+          updates every 5s
+          {lastRefresh && <span> · {lastRefresh.toLocaleTimeString()}</span>}
         </p>
 
-
-        <div className="mt-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500 mb-2">
-            Stops
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {MAP_PICKER_STOPS.map((stop) => {
-              const style = getStopMarkerStyle(stop.id, stop.label);
-              return (
-                <button
-                  key={`${stop.id}-${stop.label}`}
-                  type="button"
-                  onClick={() => selectStop(stop)}
-                  className={`text-xs px-2.5 py-1.5 rounded-full border touch-manipulation flex items-center gap-1 ${
-                    selectedStop?.id === stop.id
-                      ? "text-white border-transparent"
-                      : "border-neutral-300 dark:border-neutral-600"
-                  }`}
-                  style={
-                    selectedStop?.id === stop.id
-                      ? { background: style?.bg ?? "#171717" }
-                      : style
-                        ? { borderColor: style.bg, color: style.bg }
-                        : undefined
-                  }
-                >
-                  {style && <span aria-hidden>{style.emoji}</span>}
-                  {stop.label}
-                </button>
-              );
-            })}
-          </div>
+        <div className="mt-2.5 flex flex-wrap gap-2">
+          {MAP_PICKER_STOPS.map((stop) => {
+            const style = getStopMarkerStyle(stop.id, stop.label);
+            return (
+              <button
+                key={`${stop.id}-${stop.label}`}
+                type="button"
+                onClick={() => selectStop(stop)}
+                className={`text-xs px-2.5 py-1.5 rounded-full border touch-manipulation flex items-center gap-1 ${
+                  selectedStop?.id === stop.id
+                    ? "text-white border-transparent"
+                    : "border-neutral-300 dark:border-neutral-600"
+                }`}
+                style={
+                  selectedStop?.id === stop.id
+                    ? { background: style?.bg ?? "#171717" }
+                    : style
+                      ? { borderColor: style.bg, color: style.bg }
+                      : undefined
+                }
+              >
+                {style && <span aria-hidden>{style.emoji}</span>}
+                {stop.label}
+              </button>
+            );
+          })}
         </div>
 
-        <div className="flex flex-wrap gap-2 mt-2">
-          {Object.entries(ROUTE_COLORS).map(([route, color]) => (
-            <span
-              key={route}
-              className="text-xs px-2 py-0.5 rounded text-white"
-              style={{ background: color }}
+        <p className="text-[11px] text-neutral-400 mt-3 mb-1.5">
+          Routes · tap to filter
+        </p>
+        <div className="flex flex-wrap gap-1.5">
+          {Object.entries(ROUTE_COLORS).map(([route, color]) => {
+            const active =
+              activeRoutes.length === 0 || activeRoutes.includes(route);
+            return (
+              <button
+                key={route}
+                type="button"
+                onClick={() => toggleRoute(route)}
+                className={`text-xs font-bold px-2 py-1 rounded touch-manipulation border ${
+                  active
+                    ? "text-white border-transparent"
+                    : "text-neutral-400 border-neutral-300 dark:border-neutral-700 dark:text-neutral-500"
+                }`}
+                style={active ? { background: color } : undefined}
+                aria-pressed={activeRoutes.includes(route)}
+              >
+                {route}
+              </button>
+            );
+          })}
+          {activeRoutes.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setActiveRoutes([])}
+              className="text-xs px-2 py-1 rounded border border-neutral-300 dark:border-neutral-600 text-neutral-600 dark:text-neutral-300 touch-manipulation"
             >
-              {route}
-            </span>
-          ))}
+              Show all
+            </button>
+          )}
         </div>
       </div>
     </main>

@@ -3,22 +3,17 @@
 import type { LiveVehicle } from "@/lib/bods";
 import type { StopCoord } from "@/lib/stopCoords";
 import type { StopDeparture } from "@/lib/stopTimes";
+import { RouteBadge } from "@/components/RouteBadge";
 
-const ROUTE_COLORS: Record<string, string> = {
-  "11": "#2563eb",
-  "12X": "#7c3aed",
-  "14": "#059669",
-  "14A": "#0d9488",
-  "87": "#d97706",
-  "17": "#dc2626",
-  "17A": "#ea580c",
-  "21": "#db2777",
-  "21A": "#c026d3",
-  "21S": "#9333ea",
-};
-
-function routeColor(route: string): string {
-  return ROUTE_COLORS[route] ?? "#525252";
+/** Falls back to a clock time for stale reports (e.g. last night's parking spot) */
+function positionAge(recordedAt: string): string | null {
+  const ms = Date.now() - new Date(recordedAt).getTime();
+  if (Number.isNaN(ms) || ms < 0) return null;
+  const sec = Math.round(ms / 1000);
+  if (sec < 60) return `${sec}s ago`;
+  const min = Math.round(sec / 60);
+  if (min <= 60) return `${min} min ago`;
+  return null;
 }
 
 export function MapSelectionPanel({
@@ -48,12 +43,12 @@ export function MapSelectionPanel({
                 Live bus
               </p>
               <p className="text-lg font-bold flex items-center gap-2">
-                <span
-                  className="inline-block px-2 py-0.5 rounded text-white text-sm"
-                  style={{ background: routeColor(bus.route) }}
-                >
-                  {bus.route}
-                </span>
+                <RouteBadge route={bus.route} size="lg" />
+                {bus.destination && (
+                  <span className="text-sm font-normal text-neutral-500 truncate">
+                    → {bus.destination}
+                  </span>
+                )}
               </p>
             </>
           ) : stop ? (
@@ -78,12 +73,6 @@ export function MapSelectionPanel({
       <div className="px-4 py-3">
         {bus && (
           <div className="space-y-2 text-sm">
-            {bus.destination && (
-              <p>
-                <span className="text-neutral-500">Heading to </span>
-                <strong>{bus.destination}</strong>
-              </p>
-            )}
             {bus.origin && (
               <p className="text-neutral-600 dark:text-neutral-400">
                 From {bus.origin}
@@ -96,8 +85,7 @@ export function MapSelectionPanel({
             )}
             {bus.recordedAt && (
               <p className="text-xs text-neutral-500">
-                Position updated{" "}
-                {new Date(bus.recordedAt).toLocaleTimeString()}
+                Position updated {positionAge(bus.recordedAt) ?? new Date(bus.recordedAt).toLocaleTimeString()}
               </p>
             )}
             {!bus.destination && (
@@ -114,7 +102,14 @@ export function MapSelectionPanel({
               Next departures
             </p>
             {departuresLoading && (
-              <p className="text-sm text-neutral-500">Loading timetable…</p>
+              <ul className="space-y-2" aria-hidden>
+                {[0, 1, 2].map((i) => (
+                  <li
+                    key={i}
+                    className="h-12 rounded-lg bg-neutral-100 dark:bg-neutral-900 animate-pulse"
+                  />
+                ))}
+              </ul>
             )}
             {!departuresLoading && departuresError && (
               <p className="text-sm text-amber-800 dark:text-amber-200">
@@ -135,11 +130,8 @@ export function MapSelectionPanel({
                     key={`${d.route}-${d.departAt}-${d.heading}`}
                     className="flex items-start gap-3 rounded-lg bg-neutral-50 dark:bg-neutral-900 px-3 py-2"
                   >
-                    <span
-                      className="shrink-0 px-2 py-0.5 rounded text-white text-xs font-bold"
-                      style={{ background: routeColor(d.route) }}
-                    >
-                      {d.route}
+                    <span className="shrink-0 mt-0.5">
+                      <RouteBadge route={d.route} size="sm" />
                     </span>
                     <div className="min-w-0 flex-1">
                       <p className="font-medium">
@@ -163,7 +155,7 @@ export function MapSelectionPanel({
         )}
       </div>
 
-      <p className="px-4 pb-4 text-xs text-neutral-400 text-center">
+      <p className="px-4 pb-[max(1rem,env(safe-area-inset-bottom))] text-xs text-neutral-400 text-center">
         Tap the map to dismiss
       </p>
     </div>

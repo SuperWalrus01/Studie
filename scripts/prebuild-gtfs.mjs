@@ -3,13 +3,7 @@
  * Uses committed bundle when present; otherwise downloads via tsx.
  */
 import { execSync } from "child_process";
-import {
-  copyFileSync,
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  writeFileSync,
-} from "fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import { join } from "path";
 
 const root = process.cwd();

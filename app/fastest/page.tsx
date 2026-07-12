@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import type { FastestPick } from "@/lib/fastest";
 import type { BusOption } from "@/lib/busOption";
+import { RouteChain } from "@/components/RouteBadge";
 import { TransferDetail } from "@/components/TransferDetail";
 import { fetchApi } from "@/lib/fetchApi";
 
@@ -13,8 +14,6 @@ export default function FastestPage() {
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
     try {
       const { res, data } = await fetchApi<{
         error?: string;
@@ -24,6 +23,7 @@ export default function FastestPage() {
         setError(data.error ?? "Something went wrong");
         setPick(null);
       } else {
+        setError(null);
         setPick(data.pick ?? null);
       }
     } catch (err) {
@@ -35,6 +35,8 @@ export default function FastestPage() {
   }, []);
 
   useEffect(() => {
+    /* Poll-fetch: state updates happen after await, not synchronously */
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     load();
     const id = setInterval(load, 30_000);
     return () => clearInterval(id);
@@ -51,8 +53,11 @@ export default function FastestPage() {
         Best arrival across your usual trips
       </p>
 
-      {loading && !pick && (
-        <p className="text-neutral-500 py-12 text-center">Finding buses…</p>
+      {loading && !pick && !error && (
+        <div aria-hidden>
+          <div className="h-3 w-40 rounded bg-neutral-200 dark:bg-neutral-800 animate-pulse mb-3" />
+          <div className="h-44 rounded-xl bg-neutral-100 dark:bg-neutral-900 animate-pulse" />
+        </div>
       )}
 
       {error && (
@@ -89,14 +94,20 @@ function FastestCard({ pick }: { pick: FastestPick }) {
       </p>
       <div className="rounded-xl border border-emerald-500 bg-emerald-50 px-4 py-5 dark:bg-emerald-950/40 dark:border-emerald-600">
         <div className="flex items-center justify-between gap-2">
-          <span className="text-3xl font-bold">{o.route}</span>
+          <RouteChain route={o.route} size="lg" />
           <span className="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-400">
             Fastest
           </span>
         </div>
         <p className="text-sm text-neutral-500 mt-2">{o.boardStopLabel}</p>
         <p className="mt-3 text-base">
-          Leaves in <strong>{o.leaveInMinutes} min</strong>
+          {o.leaveInMinutes === 0 ? (
+            <strong>Leave now</strong>
+          ) : (
+            <>
+              Leaves in <strong>{o.leaveInMinutes} min</strong>
+            </>
+          )}
           <span className="text-neutral-500"> ({o.departAt})</span>
         </p>
         <p className="text-2xl font-semibold mt-2">

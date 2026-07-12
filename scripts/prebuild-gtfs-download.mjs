@@ -2,13 +2,7 @@
  * Download GTFS and write to data/ — run via tsx (resolves lib/*.ts imports).
  * Called from prebuild-gtfs.mjs when bundled data is missing.
  */
-import {
-  copyFileSync,
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  writeFileSync,
-} from "fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import { join } from "path";
 
 const root = process.cwd();

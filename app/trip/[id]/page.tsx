@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { pickFastest, type BusOption } from "@/lib/busOption";
+import { RouteChain } from "@/components/RouteBadge";
 import { TransferDetail } from "@/components/TransferDetail";
 import { fetchApi } from "@/lib/fetchApi";
 import {
@@ -54,8 +55,6 @@ export default function TripPage() {
 
   const fetchOptions = useCallback(async () => {
     if (!trip) return;
-    setLoading(true);
-    setError(null);
 
     const qs = new URLSearchParams({ trip: tripId, origin });
     if (trip.id === "goingHome") qs.set("destination", destination);
@@ -71,6 +70,7 @@ export default function TripPage() {
         setOptions([]);
         setConnectorOptions([]);
       } else {
+        setError(null);
         setOptions(data.options ?? []);
         setConnectorOptions(data.connectorOptions ?? []);
       }
@@ -84,6 +84,8 @@ export default function TripPage() {
   }, [trip, tripId, origin, destination]);
 
   useEffect(() => {
+    /* Poll-fetch: state updates happen after await, not synchronously */
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchOptions();
     const interval = setInterval(fetchOptions, 30_000);
     return () => clearInterval(interval);
@@ -144,7 +146,12 @@ export default function TripPage() {
             value: k,
             label: ORIGIN_LABELS[k],
           }))}
-          onChange={(v) => setOrigin(v as OriginKey)}
+          onChange={(v) => {
+            setOrigin(v as OriginKey);
+            setOptions([]);
+            setConnectorOptions([]);
+            setLoading(true);
+          }}
         />
       )}
 
@@ -156,12 +163,24 @@ export default function TripPage() {
             value: k,
             label: DEST_LABELS[k],
           }))}
-          onChange={(v) => setDestination(v as DestinationKey)}
+          onChange={(v) => {
+            setDestination(v as DestinationKey);
+            setOptions([]);
+            setConnectorOptions([]);
+            setLoading(true);
+          }}
         />
       )}
 
       {loading && displayOptions.length === 0 && displayConnector.length === 0 && (
-        <p className="text-neutral-500 py-8 text-center">Loading buses…</p>
+        <ul className="flex flex-col gap-3" aria-hidden>
+          {[0, 1, 2].map((i) => (
+            <li
+              key={i}
+              className="h-32 rounded-xl bg-neutral-100 dark:bg-neutral-900 animate-pulse"
+            />
+          ))}
+        </ul>
       )}
 
       {error && (
@@ -252,22 +271,33 @@ function OptionList({ options }: { options: BusOption[] }) {
           }`}
         >
           <div className="flex items-center justify-between gap-2">
-            <span className="text-xl font-bold">{opt.route}</span>
+            <RouteChain route={opt.route} size="lg" />
             {opt.fastest && (
               <span className="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-400">
                 Fastest
               </span>
             )}
           </div>
-          <p className="text-sm text-neutral-500 mt-1">
+          <p className="text-sm text-neutral-500 mt-1.5">
             {opt.boardStopLabel}
             {opt.walkMinutes != null && opt.walkMinutes > 0 && (
               <span> · {opt.walkMinutes} min walk</span>
             )}
-            {opt.live && <span> · live</span>}
+            {opt.live && (
+              <span className="text-emerald-600 dark:text-emerald-400">
+                {" "}
+                · live
+              </span>
+            )}
           </p>
           <p className="mt-2 text-base">
-            Leaves in <strong>{opt.leaveInMinutes} min</strong>
+            {opt.leaveInMinutes === 0 ? (
+              <strong>Leave now</strong>
+            ) : (
+              <>
+                Leaves in <strong>{opt.leaveInMinutes} min</strong>
+              </>
+            )}
             <span className="text-neutral-500"> ({opt.departAt})</span>
           </p>
           <p className="text-lg font-semibold mt-1">

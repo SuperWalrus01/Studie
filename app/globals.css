@@ -18,6 +18,10 @@
   }
 }
 
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
@@ -29,6 +33,12 @@ body {
   font-family: inherit;
 }
 
+@media (prefers-color-scheme: dark) {
+  .leaflet-container {
+    background: #18181b;
+  }
+}
+
 .leaflet-container .bus-stop-hit {
   background: transparent !important;
   border: none !important;
@@ -36,4 +46,15 @@ body {
 
 .leaflet-container .bus-stop-hit > div {
   touch-action: manipulation;
+}
+
+/* Glide bus markers between live position updates */
+.leaflet-container .bus-marker {
+  transition: transform 1.2s linear;
+  will-change: transform;
+}
+
+/* Leaflet drives marker transforms during zoom — transitions would lag them */
+.leaflet-zoom-anim .bus-marker {
+  transition: none;
 }

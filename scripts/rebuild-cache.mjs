@@ -1,5 +1,3 @@
-import { readFileSync, existsSync } from "fs";
-
 async function main() {
   const { loadGtfsSubset } = await import("../lib/gtfs.ts");
   const { getNewUnionToStJohnsOptions } = await import("../lib/compare.ts");
