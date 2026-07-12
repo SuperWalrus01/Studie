@@ -13,11 +13,6 @@ export const ROUTE_NAMES = ROUTE_NAMES_LIST;
 /** City-centre routes: New Union (BY1/BY5) → St Johns Church */
 export const CITY_CONNECTOR_ROUTES = CITY_CONNECTOR_ROUTES_LIST;
 
-export const NEW_UNION_TO_ST_JOHNS_STOPS = [
-  STOPS.newUnionBY1,
-  STOPS.newUnionBY5,
-] as const;
-
 export const NEW_UNION_STOP_IDS = [
   STOPS.newUnionBY1,
   STOPS.newUnionBY2,
@@ -33,6 +28,12 @@ export const ST_JOHNS_STOP_IDS = [
   STOPS.stJohnsCS4,
 ] as const;
 
+/** Rail Station Bridge — outbound (toward campus) and inbound (toward city) sides */
+export const RAIL_STATION_STOP_IDS = [
+  STOPS.railStationOut,
+  STOPS.railStationIn,
+] as const;
+
 export type RouteName = (typeof ROUTE_NAMES)[number];
 
 export const ALL_STOP_IDS = ALL_STOP_IDS_LIST;
@@ -44,6 +45,7 @@ export const ALL_STOP_IDS = ALL_STOP_IDS_LIST;
 export const STOP_TIMETABLE_GROUPS: readonly (readonly string[])[] = [
   NEW_UNION_STOP_IDS,
   ST_JOHNS_STOP_IDS,
+  RAIL_STATION_STOP_IDS,
 ];
 
 export function getStopIdsForTimetable(stopId: string): string[] {

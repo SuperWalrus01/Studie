@@ -1,5 +1,7 @@
 /** Single source of truth for route badge/marker colors */
 export const ROUTE_COLORS: Record<string, string> = {
+  "9": "#0891b2",
+  "9B": "#0e7490",
   "11": "#2563eb",
   "12X": "#7c3aed",
   "14": "#059669",

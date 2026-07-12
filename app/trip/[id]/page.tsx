@@ -212,9 +212,16 @@ export default function TripPage() {
           )}
           {trip.id === "goingHome" && destination === "cityVillage" && (
             <p className="text-xs text-neutral-400 mb-3">
-              14/87 go direct to St Johns. 11/12X end at New Union St — options
+              14 goes direct to St Johns. 11/12X end at New Union St — options
               below already include the cross-street change to a 17/21 (or the
               10 min walk when that&apos;s quicker), so just pick the earliest
+              arrival.
+            </p>
+          )}
+          {trip.id === "toWarwick" && origin === "cityVillage" && (
+            <p className="text-xs text-neutral-400 mb-3 mt-1">
+              Options include catching a 9/9B/11/87 to the rail station and
+              picking up the 12X there (same stop) — just pick the earliest
               arrival.
             </p>
           )}

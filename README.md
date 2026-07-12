@@ -9,9 +9,15 @@ A simple mobile-friendly web app to compare Coventry buses for regular trips:
 
 Shows upcoming departures sorted by **fastest arrival**, using TfWM schedules and live delays.
 
+To Warwick from City Village compares:
+
+- **11 / 14 / 87** direct from St Johns Church
+- **12X** from New Union St or Pool Meadow (with walk time)
+- **9 / 9B / 11 / 87** to Rail Station Bridge, then the **12X** from the same stop
+
 Going home to City Village compares all ways door to door:
 
-- **14 / 87** direct to St Johns Church
+- **14 / 14A** direct to St Johns Church
 - **11 / 12X** to New Union St, then cross the street for a **17 / 21** to St Johns
 - **11 / 12X** to New Union St, then the ~10 min walk when that beats waiting
 

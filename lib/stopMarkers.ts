@@ -21,6 +21,7 @@ const ST_JOHNS_STYLE: StopMarkerStyle = {
 
 const FAVORITE_STOP_MARKERS: Record<string, StopMarkerStyle> = {
   [STOPS.newUnionBY2]: NEW_UNION_STYLE,
+  [STOPS.railStationOut]: { emoji: "🚉", bg: "#0891b2", label: "Rail Stn" },
   [STOPS.warwickUW1]: { emoji: "🎓", bg: "#7c3aed", label: "Warwick" },
 };
 

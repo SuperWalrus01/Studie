@@ -14,29 +14,34 @@ const STOPS = {
   stJohnsCS2: "43000003202",
   stJohnsCS3: "43000003203",
   stJohnsCS4: "43000003206",
-  newUnionBY1: "43000002101",
   newUnionBY2: "43000002102",
   newUnionBY4: "43000002103",
   newUnionBY5: "43000002104",
   poolMeadow12X: "43000005020",
+  railStationOut: "43000008201",
   warwickUW1: "43000065301",
   warwickUW3: "43000065303",
+  warwickScarmanGH3: "43001317101",
+  warwickScarmanGH4: "43001317102",
 };
 
 const ST_JOHNS = [STOPS.stJohnsCS1, STOPS.stJohnsCS2, STOPS.stJohnsCS3, STOPS.stJohnsCS4];
 const CONNECTORS = ["17", "17A", "21", "21A", "21S"];
 
-/** [trip, label, origin, dests[], routes[]] */
+/** [trip, label, origin, dests[], routes[]] — mirrors lib/journeys.ts config */
 const PAIRS = [
-  ["toWarwick", "CS2→UW1 (11)", STOPS.stJohnsCS2, [STOPS.warwickUW1], ["11"]],
+  ["toWarwick", "CS2→GH3 (11)", STOPS.stJohnsCS2, [STOPS.warwickScarmanGH3], ["11"]],
   ["toWarwick", "CS1→UW1 (14)", STOPS.stJohnsCS1, [STOPS.warwickUW1], ["14", "14A"]],
+  ["toWarwick", "CS3→GH3 (87)", STOPS.stJohnsCS3, [STOPS.warwickScarmanGH3], ["87"]],
   ["toWarwick", "BY4→UW3 (12X)", STOPS.newUnionBY4, [STOPS.warwickUW3], ["12X"]],
   ["toWarwick", "Pool→UW3 (12X)", STOPS.poolMeadow12X, [STOPS.warwickUW3], ["12X"]],
-  ["goingHome", "UW1→CS2 (11)", STOPS.warwickUW1, [STOPS.stJohnsCS2], ["11"]],
-  ["goingHome", "UW1→CS1 (14)", STOPS.warwickUW1, [STOPS.stJohnsCS1], ["14", "14A"]],
+  ["viaStation", "CS2→Station (9/9B/11)", STOPS.stJohnsCS2, [STOPS.railStationOut], ["9", "9B", "11"]],
+  ["viaStation", "CS3→Station (87)", STOPS.stJohnsCS3, [STOPS.railStationOut], ["87"]],
+  ["viaStation", "Station→UW3 (12X)", STOPS.railStationOut, [STOPS.warwickUW3], ["12X"]],
   ["goingHome", "UW1→BY2 (11)", STOPS.warwickUW1, [STOPS.newUnionBY2], ["11"]],
-  ["goingHome", "UW3→BY4 (12X)", STOPS.warwickUW3, [STOPS.newUnionBY4], ["12X"]],
-  ["connector", "BY1→St Johns (17/21)", STOPS.newUnionBY1, ST_JOHNS, CONNECTORS],
+  ["goingHome", "GH4→BY2 (11)", STOPS.warwickScarmanGH4, [STOPS.newUnionBY2], ["11"]],
+  ["goingHome", "UW1→CS4 (14)", STOPS.warwickUW1, [STOPS.stJohnsCS4], ["14", "14A"]],
+  ["goingHome", "GH3→BY2 (12X)", STOPS.warwickScarmanGH3, [STOPS.newUnionBY2], ["12X"]],
   ["connector", "BY5→St Johns (17/21)", STOPS.newUnionBY5, ST_JOHNS, CONNECTORS],
 ];
 

@@ -1,11 +1,13 @@
 import type { BusOption } from "@/lib/busOption";
 
-/** Change instructions for going-home options that involve New Union St */
+/** Change instructions for two-leg options (New Union St or rail station) */
 export function TransferDetail({ option }: { option: BusOption }) {
   if (option.chained && option.connectorRoute) {
     return (
       <p className="text-sm text-neutral-600 dark:text-neutral-300 mt-2">
-        Off at New Union St {option.changeArriveAt} · cross the street ·{" "}
+        Off at {option.changeStopLabel ?? "New Union St"}{" "}
+        {option.changeArriveAt}
+        {option.changeHint && <> · {option.changeHint}</>} ·{" "}
         <strong>{option.connectorRoute}</strong> at {option.connectorDepartAt}
         {option.transferWaitMinutes != null && (
           <span className="text-neutral-500">

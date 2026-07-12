@@ -11,6 +11,7 @@ import {
   NEW_UNION_TO_CITY_VILLAGE_WALK_MIN,
   NEW_UNION_TO_ST_JOHNS_BOARDS,
   NEW_UNION_TRANSFER_ROUTES,
+  VIA_RAIL_STATION,
 } from "./journeys";
 import { ST_JOHNS_STOP_IDS } from "./stops";
 import { type BusOption } from "./busOption";
@@ -26,9 +27,31 @@ export interface TripOptionsResult {
   connectorOptions?: BusOption[];
 }
 
-const CROSS_STREET_MIN = 3;
-/** Beyond this, waiting for a 17/21 never beats walking home from New Union */
+/** Beyond this, waiting for a connection never beats the alternatives */
 const MAX_TRANSFER_WAIT_MIN = 30;
+
+interface ChainSpec {
+  arriveLabel: string;
+  changeStopLabel: string;
+  changeHint: string;
+  minTransferMin: number;
+}
+
+/** Hop off 11/12X at New Union, cross the street, 17/21 to St Johns */
+const NEW_UNION_CHAIN: ChainSpec = {
+  arriveLabel: "St Johns Church",
+  changeStopLabel: "New Union St",
+  changeHint: "cross the street",
+  minTransferMin: 3,
+};
+
+/** Feeder bus to Rail Station Bridge, 12X to campus from the same stop */
+const RAIL_STATION_CHAIN: ChainSpec = {
+  arriveLabel: "Warwick Uni",
+  changeStopLabel: "Rail Station Bridge",
+  changeHint: "same stop",
+  minTransferMin: 2,
+};
 
 function secToTime(sec: number): string {
   const normalized = ((sec % (24 * 3600)) + 24 * 3600) % (24 * 3600);
@@ -142,9 +165,11 @@ function isTransferRoute(route: string): boolean {
   );
 }
 
-function chainToStJohns(
+/** Best two-leg option: main leg + earliest-arriving valid connector */
+function chainLegs(
   main: Omit<BusOption, "fastest">,
-  connectors: Omit<BusOption, "fastest">[]
+  connectors: Omit<BusOption, "fastest">[],
+  spec: ChainSpec
 ): Omit<BusOption, "fastest"> | null {
   let best: Omit<BusOption, "fastest"> | null = null;
 
@@ -152,19 +177,22 @@ function chainToStJohns(
     /** minutesBetween wraps midnight, so a connector departing before the
      *  main leg arrives shows up as a ~24h wait — the max cap rejects it */
     const wait = minutesBetween(main.arriveAt, conn.departAt);
-    if (wait < CROSS_STREET_MIN || wait > MAX_TRANSFER_WAIT_MIN) continue;
+    if (wait < spec.minTransferMin || wait > MAX_TRANSFER_WAIT_MIN) continue;
 
     const chained: Omit<BusOption, "fastest"> = {
       route: `${main.route} → ${conn.route}`,
       boardStopLabel: main.boardStopLabel,
+      walkMinutes: main.walkMinutes,
       departAt: main.departAt,
       arriveAt: conn.arriveAt,
-      arriveLabel: "St Johns Church",
+      arriveLabel: spec.arriveLabel,
       leaveInMinutes: main.leaveInMinutes,
       durationMinutes: main.durationMinutes + wait + conn.durationMinutes,
       live: main.live || conn.live,
       chained: true,
       changeArriveAt: main.arriveAt,
+      changeStopLabel: spec.changeStopLabel,
+      changeHint: spec.changeHint,
       connectorRoute: conn.route,
       connectorDepartAt: conn.departAt,
       transferWaitMinutes: wait,
@@ -194,6 +222,7 @@ function walkHomeOption(
     arriveLabel: "City Village",
     durationMinutes: leg.durationMinutes + NEW_UNION_TO_CITY_VILLAGE_WALK_MIN,
     changeArriveAt: leg.arriveAt,
+    changeStopLabel: "New Union St",
     walkFromNewUnion: true,
   };
 }
@@ -206,7 +235,7 @@ function buildGoingHomeCityVillageOptions(
   const viaNewUnion: Omit<BusOption, "fastest">[] = [];
 
   for (const leg of raw.filter((o) => isTransferRoute(o.route))) {
-    const combo = chainToStJohns(leg, connectors);
+    const combo = chainLegs(leg, connectors, NEW_UNION_CHAIN);
     const walk = walkHomeOption(leg);
     if (
       combo &&
@@ -302,6 +331,24 @@ export async function getOptionsForTrip(
     (route) => resolveDestStopIds(route, dest),
     nowSec
   );
+
+  /** From City Village a 9/9B/11/87 to the rail station can catch the 12X */
+  if (trip.id === "toWarwick" && originKey === "cityVillage") {
+    const feeders = await collectOptions(
+      VIA_RAIL_STATION.feederBoards,
+      () => [VIA_RAIL_STATION.stationStopId],
+      nowSec
+    );
+    const connectors = await collectOptions(
+      [VIA_RAIL_STATION.connectorBoard],
+      (route) => resolveDestStopIds(route, dest),
+      nowSec
+    );
+    for (const feeder of feeders) {
+      const combo = chainLegs(feeder, connectors, RAIL_STATION_CHAIN);
+      if (combo) raw.push(combo);
+    }
+  }
 
   return { options: rankOptions(raw) };
 }

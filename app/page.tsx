@@ -5,13 +5,13 @@ import { TRIP_LIST, TRIPS, type TripId } from "@/lib/journeys";
 const TRIP_META: Record<TripId, { icon: string; desc: string; routes: string[] }> = {
   toWarwick: {
     icon: "🎓",
-    desc: "City Village or New Union St → campus",
-    routes: ["11", "12X", "14", "87"],
+    desc: "Direct, or via rail station + 12X",
+    routes: ["9", "11", "12X", "14", "87"],
   },
   goingHome: {
     icon: "🏠",
     desc: "Warwick → City Village or New Union St",
-    routes: ["11", "12X", "14", "87"],
+    routes: ["11", "12X", "14"],
   },
 };
 

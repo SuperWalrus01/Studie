@@ -10,11 +10,15 @@ export interface BusOption {
   durationMinutes: number;
   fastest: boolean;
   live: boolean;
-  /** Combined 11/12X + 17/21 when going home to City Village */
+  /** Two-leg trip: bus + connecting bus (New Union 17/21 or rail station 12X) */
   chained?: boolean;
-  /** First leg arrival at New Union St (chained or walk options) */
+  /** First leg arrival time at the change stop (chained or walk options) */
   changeArriveAt?: string;
-  /** Second-leg 17/21 route for chained options */
+  /** Where the change happens, e.g. "New Union St" or "Rail Station Bridge" */
+  changeStopLabel?: string;
+  /** How to make the change, e.g. "cross the street" or "same stop" */
+  changeHint?: string;
+  /** Second-leg route for chained options */
   connectorRoute?: string;
   connectorDepartAt?: string;
   /** Minutes between first-leg arrival and connector departure */

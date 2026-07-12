@@ -38,6 +38,8 @@ const STOP_SET = new Set<string>(ALL_STOP_IDS);
 
 /** route short name → GTFS agency_id */
 const ROUTE_AGENCY: Record<string, string> = {
+  "9": "OP4",
+  "9B": "OP4",
   "11": "OP4",
   "12X": "OP4",
   "14": "OP4",
