@@ -1,3 +1,4 @@
+/* eslint-env node, es2017 */
 /**
  * Alexa skill handler for the Coventry bus app.
  *
@@ -9,6 +10,10 @@
  * environment variables in the console. process.env still takes precedence, so
  * a self-managed Lambda can use real environment variables instead.
  */
+
+const http = require("http");
+const https = require("https");
+const { URL } = require("url");
 
 const config = require("./config.js");
 
@@ -78,40 +83,71 @@ function elicitSlot(slotName, prompt, intent) {
   };
 }
 
-async function callBusApp(path, params) {
-  if (!BASE_URL) {
-    throw new Error("BUSAPP_BASE_URL is not set — fill it in config.js");
-  }
-
-  const url = new URL(`${BASE_URL}${path}`);
-  for (const [key, value] of Object.entries(params)) {
-    if (value != null && value !== "") url.searchParams.set(key, String(value));
-  }
-
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-
-  try {
-    const res = await fetch(url, {
-      headers: PROXY_KEY ? { "x-alexa-proxy-key": PROXY_KEY } : {},
-      signal: controller.signal,
-    });
-
-    if (!res.ok) {
-      /** 403 here almost always means config.js and Vercel disagree on the key */
-      console.error(
-        `busapp returned ${res.status} for ${url.pathname}${
-          res.status === 403 ? " — ALEXA_PROXY_KEY mismatch?" : ""
-        }`
-      );
+/**
+ * Uses node's built-in https module rather than the modern global helpers:
+ * those only exist on Node 18+, and the hosted runtime version is not ours to
+ * assume. This also keeps the console's linter quiet.
+ */
+function callBusApp(path, params) {
+  return new Promise(function (resolve, reject) {
+    if (!BASE_URL) {
+      reject(new Error("BUSAPP_BASE_URL is not set — fill it in config.js"));
+      return;
     }
 
-    const body = await res.json().catch(() => null);
-    if (!body) throw new Error(`Bad response from busapp (${res.status})`);
-    return body;
-  } finally {
-    clearTimeout(timer);
-  }
+    let url;
+    try {
+      url = new URL(BASE_URL + path);
+    } catch (err) {
+      reject(new Error("BUSAPP_BASE_URL is not a valid URL: " + BASE_URL));
+      return;
+    }
+
+    Object.keys(params).forEach(function (key) {
+      const value = params[key];
+      if (value !== null && value !== undefined && value !== "") {
+        url.searchParams.set(key, String(value));
+      }
+    });
+
+    const client = url.protocol === "http:" ? http : https;
+    const options = {
+      headers: PROXY_KEY ? { "x-alexa-proxy-key": PROXY_KEY } : {},
+    };
+
+    const req = client.get(url, options, function (res) {
+      let body = "";
+      res.setEncoding("utf8");
+      res.on("data", function (chunk) {
+        body += chunk;
+      });
+      res.on("end", function () {
+        if (res.statusCode !== 200) {
+          /** 403 almost always means config.js and Vercel disagree on the key */
+          console.error(
+            "busapp returned " +
+              res.statusCode +
+              " for " +
+              url.pathname +
+              (res.statusCode === 403 ? " — ALEXA_PROXY_KEY mismatch?" : "")
+          );
+        }
+        try {
+          resolve(JSON.parse(body));
+        } catch (err) {
+          reject(new Error("Bad response from busapp (" + res.statusCode + ")"));
+        }
+      });
+    });
+
+    req.setTimeout(FETCH_TIMEOUT_MS, function () {
+      const timeout = new Error("busapp timed out");
+      timeout.name = "TimeoutError";
+      req.destroy(timeout);
+    });
+
+    req.on("error", reject);
+  });
 }
 
 /** Every intent resolves to one API call and reads back its `speech` field */
@@ -122,7 +158,7 @@ async function answer(path, params, cardFallback) {
     return speak(text, { cardTitle: data.cardTitle || cardFallback });
   } catch (err) {
     console.error("busapp call failed:", err);
-    const timedOut = err.name === "AbortError";
+    const timedOut = err.name === "TimeoutError";
     return speak(
       timedOut
         ? "The timetable is taking too long to answer. Try again in a moment."
