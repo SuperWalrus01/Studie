@@ -10,7 +10,8 @@
     "start": "next start",
     "lint": "eslint",
     "verify-stops": "node --env-file=.env.local scripts/verify-stops.mjs",
-    "rebuild-cache": "NODE_OPTIONS=--max-old-space-size=8192 npx tsx --env-file=.env.local scripts/rebuild-cache.mjs"
+    "rebuild-cache": "NODE_OPTIONS=--max-old-space-size=8192 npx tsx --env-file=.env.local scripts/rebuild-cache.mjs",
+    "route-stats": "npx tsx --env-file=.env.local scripts/generate-route-stats.mjs"
   },
   "dependencies": {
     "adm-zip": "^0.5.17",

@@ -1,0 +1,53 @@
+{
+  "manifest": {
+    "manifestVersion": "1.0",
+    "publishingInformation": {
+      "locales": {
+        "en-GB": {
+          "name": "Coventry Buses",
+          "summary": "Next bus times for the Coventry to Warwick University corridor.",
+          "description": "Ask for the next bus at St Johns Church, New Union Street, Rail Station Bridge, Pool Meadow, Warwick Uni Interchange or Scarman Road. Covers the 9, 9B, 11, 12X, 14, 14A and 87 to campus and the 17, 17A, 21, 21A and 21S city connectors, using TfWM timetables with live delay data. You can also ask for the fastest way to campus or home, or whether a route is running late.\n\nTry:\n\"Alexa, ask Coventry buses when the next 11 is at St Johns Church\"\n\"Alexa, ask Coventry buses when the next twelve X is at Rail Station Bridge\"\n\"Alexa, ask Coventry buses for the fastest way to campus\"\n\"Alexa, ask Coventry buses if the 12X is running late\"",
+          "examplePhrases": [
+            "Alexa, open Coventry buses",
+            "Alexa, ask Coventry buses when the next 11 is at St Johns Church",
+            "Alexa, ask Coventry buses for the fastest way to campus"
+          ],
+          "keywords": [
+            "bus",
+            "coventry",
+            "warwick",
+            "transport",
+            "timetable"
+          ]
+        }
+      },
+      "isAvailableWorldwide": false,
+      "distributionCountries": [
+        "GB"
+      ],
+      "testingInstructions": "Personal skill. The backend reads TfWM GTFS and GTFS-RT for a fixed set of Coventry stops.",
+      "category": "PUBLIC_TRANSPORTATION"
+    },
+    "apis": {
+      "custom": {
+        "endpoint": {
+          "sourceDir": "lambda"
+        },
+        "interfaces": []
+      }
+    },
+    "privacyAndCompliance": {
+      "allowsPurchases": false,
+      "usesPersonalInfo": false,
+      "isChildDirected": false,
+      "isExportCompliant": true,
+      "containsAds": false,
+      "locales": {
+        "en-GB": {
+          "privacyPolicyUrl": "",
+          "termsOfUseUrl": ""
+        }
+      }
+    }
+  }
+}

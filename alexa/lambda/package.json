@@ -1,0 +1,8 @@
+{
+  "name": "coventry-buses-alexa",
+  "version": "1.0.0",
+  "description": "Alexa skill handler that proxies to the busapp timetable API",
+  "main": "index.js",
+  "private": true,
+  "engines": { "node": ">=18" }
+}

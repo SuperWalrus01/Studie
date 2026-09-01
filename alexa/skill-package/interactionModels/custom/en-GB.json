@@ -1,0 +1,389 @@
+{
+  "interactionModel": {
+    "languageModel": {
+      "invocationName": "coventry buses",
+      "intents": [
+        {
+          "name": "AMAZON.CancelIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.HelpIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.StopIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.NavigateHomeIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.FallbackIntent",
+          "samples": []
+        },
+        {
+          "name": "NextRouteAtStopIntent",
+          "slots": [
+            {
+              "name": "route",
+              "type": "BUS_ROUTE"
+            },
+            {
+              "name": "place",
+              "type": "BUS_PLACE"
+            },
+            {
+              "name": "direction",
+              "type": "TRIP_DIRECTION"
+            }
+          ],
+          "samples": [
+            "when is the next {route} at {place}",
+            "when's the next {route} at {place}",
+            "when is the next {route} from {place}",
+            "when's the next {route} from {place}",
+            "next {route} at {place}",
+            "next {route} from {place}",
+            "when does the next {route} leave {place}",
+            "when is the {route} due at {place}",
+            "how long until the next {route} at {place}",
+            "when is the next {route} bus at {place}",
+            "what time is the next {route} from {place}",
+            "give me the next {route} at {place}",
+            "{route} at {place}",
+            "{route} from {place}",
+            "when is the next {route} {direction} at {place}",
+            "when's the next {route} {direction} at {place}",
+            "when is the next {route} {direction} from {place}",
+            "next {route} {direction} at {place}",
+            "when is the next {route} at {place} {direction}",
+            "what time is the next {route} {direction} from {place}"
+          ]
+        },
+        {
+          "name": "NextBusAtStopIntent",
+          "slots": [
+            {
+              "name": "place",
+              "type": "BUS_PLACE"
+            },
+            {
+              "name": "direction",
+              "type": "TRIP_DIRECTION"
+            }
+          ],
+          "samples": [
+            "when is the next bus at {place}",
+            "when's the next bus at {place}",
+            "when is the next bus from {place}",
+            "next bus at {place}",
+            "next bus from {place}",
+            "what's leaving {place}",
+            "what is leaving from {place}",
+            "what buses are due at {place}",
+            "departures at {place}",
+            "departures from {place}",
+            "when is the next bus {direction} at {place}",
+            "when's the next bus {direction} from {place}",
+            "next bus {direction} at {place}",
+            "what's leaving {place} {direction}"
+          ]
+        },
+        {
+          "name": "FastestJourneyIntent",
+          "slots": [
+            {
+              "name": "direction",
+              "type": "TRIP_DIRECTION"
+            }
+          ],
+          "samples": [
+            "what is the fastest way {direction}",
+            "what's the fastest way {direction}",
+            "fastest way {direction}",
+            "how do i get {direction}",
+            "how do i get {direction} fastest",
+            "what's the quickest way {direction}",
+            "quickest way {direction}",
+            "how should i get {direction}",
+            "best bus {direction}",
+            "what bus should i get {direction}"
+          ]
+        },
+        {
+          "name": "RouteStatusIntent",
+          "slots": [
+            {
+              "name": "route",
+              "type": "BUS_ROUTE"
+            }
+          ],
+          "samples": [
+            "is the {route} running late",
+            "is the {route} late",
+            "is the {route} on time",
+            "is the {route} delayed",
+            "how late is the {route}",
+            "what's the status of the {route}",
+            "is the {route} running",
+            "{route} status",
+            "how is the {route} running"
+          ]
+        }
+      ],
+      "types": [
+        {
+          "name": "BUS_ROUTE",
+          "values": [
+            {
+              "id": "9",
+              "name": {
+                "value": "nine",
+                "synonyms": [
+                  "the nine",
+                  "service nine",
+                  "9"
+                ]
+              }
+            },
+            {
+              "id": "11",
+              "name": {
+                "value": "eleven",
+                "synonyms": [
+                  "the eleven",
+                  "service eleven",
+                  "11"
+                ]
+              }
+            },
+            {
+              "id": "14",
+              "name": {
+                "value": "fourteen",
+                "synonyms": [
+                  "the fourteen",
+                  "14"
+                ]
+              }
+            },
+            {
+              "id": "17",
+              "name": {
+                "value": "seventeen",
+                "synonyms": [
+                  "the seventeen",
+                  "17"
+                ]
+              }
+            },
+            {
+              "id": "21",
+              "name": {
+                "value": "twenty one",
+                "synonyms": [
+                  "the twenty one",
+                  "21"
+                ]
+              }
+            },
+            {
+              "id": "87",
+              "name": {
+                "value": "eighty seven",
+                "synonyms": [
+                  "the eighty seven",
+                  "87"
+                ]
+              }
+            },
+            {
+              "id": "9B",
+              "name": {
+                "value": "nine b",
+                "synonyms": [
+                  "nine bee",
+                  "the nine b",
+                  "9 b",
+                  "9b"
+                ]
+              }
+            },
+            {
+              "id": "12X",
+              "name": {
+                "value": "twelve x",
+                "synonyms": [
+                  "twelve ex",
+                  "the twelve x",
+                  "twelve express",
+                  "12 x",
+                  "12x"
+                ]
+              }
+            },
+            {
+              "id": "14A",
+              "name": {
+                "value": "fourteen a",
+                "synonyms": [
+                  "the fourteen a",
+                  "14 a",
+                  "14a"
+                ]
+              }
+            },
+            {
+              "id": "17A",
+              "name": {
+                "value": "seventeen a",
+                "synonyms": [
+                  "the seventeen a",
+                  "17 a",
+                  "17a"
+                ]
+              }
+            },
+            {
+              "id": "21A",
+              "name": {
+                "value": "twenty one a",
+                "synonyms": [
+                  "the twenty one a",
+                  "21 a",
+                  "21a"
+                ]
+              }
+            },
+            {
+              "id": "21S",
+              "name": {
+                "value": "twenty one s",
+                "synonyms": [
+                  "the twenty one s",
+                  "21 s",
+                  "21s"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "BUS_PLACE",
+          "values": [
+            {
+              "id": "stjohns",
+              "name": {
+                "value": "st johns church",
+                "synonyms": [
+                  "saint johns church",
+                  "st johns",
+                  "saint johns",
+                  "the church",
+                  "city village",
+                  "corporation street"
+                ]
+              }
+            },
+            {
+              "id": "newunion",
+              "name": {
+                "value": "new union street",
+                "synonyms": [
+                  "new union",
+                  "new union st",
+                  "union street"
+                ]
+              }
+            },
+            {
+              "id": "railstation",
+              "name": {
+                "value": "rail station bridge",
+                "synonyms": [
+                  "railstation bridge",
+                  "the rail station",
+                  "rail station",
+                  "train station",
+                  "the train station",
+                  "coventry station",
+                  "the station",
+                  "station bridge"
+                ]
+              }
+            },
+            {
+              "id": "poolmeadow",
+              "name": {
+                "value": "pool meadow",
+                "synonyms": [
+                  "pool meadow bus station",
+                  "the bus station"
+                ]
+              }
+            },
+            {
+              "id": "warwick",
+              "name": {
+                "value": "warwick uni",
+                "synonyms": [
+                  "warwick university",
+                  "university of warwick",
+                  "the university",
+                  "campus",
+                  "uni interchange",
+                  "the interchange"
+                ]
+              }
+            },
+            {
+              "id": "scarman",
+              "name": {
+                "value": "scarman road",
+                "synonyms": [
+                  "scarman",
+                  "gibbet hill"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TRIP_DIRECTION",
+          "values": [
+            {
+              "id": "towarwick",
+              "name": {
+                "value": "to warwick",
+                "synonyms": [
+                  "to campus",
+                  "to uni",
+                  "to the university",
+                  "to warwick uni",
+                  "to warwick university",
+                  "to class"
+                ]
+              }
+            },
+            {
+              "id": "home",
+              "name": {
+                "value": "home",
+                "synonyms": [
+                  "back home",
+                  "to city village",
+                  "back to town",
+                  "into town",
+                  "to st johns",
+                  "back to st johns"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -74,7 +74,7 @@ If you see “No Output Directory named dist”, open **Project Settings → Bui
 
 **Fix:** Timetable data is shipped in `data/gtfs-subset.json` in the repo (no download during Vercel build). To refresh it locally: `npm run bundle-gtfs` then commit and push.
 
-**Check production:** open `https://your-app.vercel.app/api/health` — you want `"ok": true` and `"bundledSubset": true`.
+**Check production:** open `https://studie-eight.vercel.app/api/health` — you want `"ok": true` and `"bundledSubset": true`.
 
 If `bundledSubset` is false, redeploy after adding `TFWM_APP_ID` and `TFWM_APP_KEY` to Vercel **Environment Variables** (Production), then trigger a new deployment.
 
@@ -101,6 +101,15 @@ node --env-file=.env.local scripts/verify-stops.mjs
 ```
 
 Lists which configured stop pairs have timetable data.
+
+## Alexa skill
+
+Ask an Echo the same questions: *"Alexa, ask Coventry buses when the next 11 is at
+St Johns Church"*. The skill is an Alexa-hosted Lambda that calls `/api/alexa/*`
+on this app, so all timetable logic stays in `lib/`.
+
+- Setup, architecture and testing: **[docs/ALEXA_SKILL.md](docs/ALEXA_SKILL.md)**
+- Every route and stop tracked: **[docs/ROUTES.md](docs/ROUTES.md)** (`npm run route-stats`)
 
 ## Install as app (PWA)
 
