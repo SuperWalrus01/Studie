@@ -33,15 +33,20 @@ const HELP =
  * loose input too, so an unresolved slot still usually works.
  */
 function slotValue(request, name) {
-  const slot = request.intent?.slots?.[name];
+  const slots = request.intent && request.intent.slots;
+  const slot = slots && slots[name];
   if (!slot) return null;
 
-  const resolutions = slot.resolutions?.resolutionsPerAuthority ?? [];
+  const resolutions =
+    (slot.resolutions && slot.resolutions.resolutionsPerAuthority) || [];
   for (const authority of resolutions) {
-    if (authority.status?.code === "ER_SUCCESS_MATCH") {
-      const first = authority.values?.[0]?.value;
-      if (first) return first.id || first.name;
-    }
+    const matched =
+      authority.status && authority.status.code === "ER_SUCCESS_MATCH";
+    if (!matched) continue;
+
+    const values = authority.values || [];
+    const first = values[0] && values[0].value;
+    if (first) return first.id || first.name;
   }
   return slot.value || null;
 }
@@ -127,7 +132,7 @@ async function answer(path, params, cardFallback) {
 }
 
 async function handleIntent(request) {
-  const name = request.intent?.name;
+  const name = request.intent && request.intent.name;
 
   switch (name) {
     case "NextRouteAtStopIntent": {
@@ -194,10 +199,10 @@ async function handleIntent(request) {
 }
 
 const handler = async (event) => {
-  const request = event?.request;
+  const request = event && event.request;
 
   try {
-    switch (request?.type) {
+    switch (request && request.type) {
       case "LaunchRequest":
         return speak(
           "Coventry buses. Ask me for the next bus at a stop, or the fastest way to campus.",
